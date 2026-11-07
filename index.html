@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Money Tracker</title>
-<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" type="image/png" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" type="image/png" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Money"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="theme-color" content="#1f6f5c">
 <style>
 :root{--bg:#f4f2ee;--card:#fff;--tx:#1d1d1f;--mu:#6b6b72;--ac:#1f6f5c;--ok:#1f7a4d;--bad:#c0392b;--ln:#e6e3dd;--pen:#c27a00;--sh:0 1px 3px rgba(0,0,0,.06);color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
@@ -54,11 +54,19 @@ details.mo{background:var(--card);border:1px solid var(--ln);border-radius:14px;
 .ch{display:block;max-width:none;font-family:inherit}.ch .cb2{fill:var(--ac);opacity:.78}.ch .cb2.sel{opacity:1;stroke:var(--tx);stroke-width:1.5}.ch .v{fill:var(--tx);font-size:11px;font-weight:600;text-anchor:middle}.ch .m{fill:var(--mu);font-size:11px;text-anchor:middle}.ch .ln{stroke:var(--pen);stroke-width:2;fill:none}.ch .dot{fill:var(--pen)}.ch .av{stroke:var(--mu);stroke-dasharray:4 4;stroke-width:1}.ch .bs{stroke:var(--ln)}.ch .hit{fill:transparent}
 .cr{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--ln)}.cr:first-of-type{border-top:0}.cr .lbl{margin-top:1px}.cr.dx{display:block;background:var(--bg);border-radius:10px;padding:10px;margin:4px 0}.cr.dx select{width:100%;margin:6px 0}
 .cc button.ed{background:transparent;color:var(--ac);border-style:dashed}
+.fw{width:100%;padding:13px;font-size:16px;font-weight:600}
+.cnav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.ctt{background:transparent;color:var(--tx);font-size:19px;font-weight:700;flex:1;padding:6px}.ctt span{color:var(--ac);font-size:13px}
+.mp{background:var(--bg);border-radius:12px;padding:10px;margin-bottom:10px}.mg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0}.mg button{background:var(--card);color:var(--tx);border:1px solid var(--ln);padding:11px 0}.mg button.on{background:var(--ac);color:#fff;border-color:var(--ac)}.mg button.has{font-weight:700}
+.cg{touch-action:pan-y}
+/* centered layout */
+.hero{flex-direction:column;align-items:center;text-align:center}.card{text-align:center}.row{justify-content:center}.row.sp{justify-content:space-between}
+.tabs button:first-child{margin-left:auto}.tabs button:last-child{margin-right:auto}
+.tx,.bl,.cr,.cb,details.mo>summary{text-align:left}.tx .am{text-align:right}
 .bg{display:grid;grid-template-columns:1fr 110px;gap:6px 10px;align-items:center;font-size:14px}.bg input{width:100%;text-align:right}
 </style></head><body><main>
 
 <div class="card hero"><div><h1>💸 Money Tracker</h1><div class="lbl">Wallets, savings, bills and tuition in one place</div></div>
-<div class="row" style="flex-direction:column;align-items:flex-end;gap:6px"><button class="ic" id="th" title="Switch light/dark mode">🌙</button><span class="lbl" id="sy"></span></div></div>
+<div class="row" style="gap:10px"><button class="ic" id="th" title="Switch light/dark mode">🌙</button><span class="lbl" id="sy"></span></div></div>
 
 <div class="tabs" role="tablist"><button data-tab="ov" class="on">🏠 Overview</button><button data-tab="lg">📒 Ledger</button><button data-tab="bl">🧾 Bills</button><button data-tab="pl">🎓 Tuition</button><button data-tab="db">💳 Debts</button><button data-tab="mo">⚙ More</button></div>
 <div class="pn" id="p-ov"></div><div class="pn" id="p-lg" hidden></div><div class="pn" id="p-bl" hidden></div><div class="pn" id="p-pl" hidden></div><div class="pn" id="p-db" hidden></div><div class="pn" id="p-mo" hidden></div>
@@ -102,10 +110,11 @@ function mstats(m){const o={inc:0,exp:0,sav:0,adj:0,cats:{},n:0};live().filter(t
 let pt,SY={};try{SY=JSON.parse(localStorage.getItem(SK)||"{}")}catch(e){}
 const sync=t=>{const e=$("sy");if(e)e.textContent=t};
 const payload=()=>{const d=JSON.parse(JSON.stringify(S));delete d.theme;return d};
-const keep=()=>{try{localStorage.setItem(LS,JSON.stringify(S));return true}catch(e){toast("⚠ This device’s storage is full. Export a backup now (More tab).");return false}};
+const lsg=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lss=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+const keep=()=>{try{localStorage.setItem(LS,JSON.stringify(S));return true}catch(e){if(e&&e.name==="QuotaExceededError")toast("⚠ This device’s storage is full. Export a backup now (More tab).");return false}};
 const snap=label=>{try{localStorage.setItem("money-prev",JSON.stringify({at:Date.now(),label,data:payload()}));return true}catch(e){return false}};
 const getPrev=()=>{try{return JSON.parse(localStorage.getItem("money-prev")||"null")}catch(e){return null}};
-try{if(!localStorage.getItem("money-first"))localStorage.setItem("money-first",String(Date.now()));if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+try{if(!lsg("money-first"))lss("money-first",String(Date.now()));if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
 const save=()=>{S.u=Date.now();keep();push()};
 const GH=(p,o)=>fetch("https://api.github.com"+p,Object.assign({},o,{headers:{Authorization:"Bearer "+SY.t,Accept:"application/vnd.github+json","Content-Type":"application/json"}})).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()});
 function push(){if(!SY.id)return;clearTimeout(pt);sync("Syncing…");pt=setTimeout(()=>GH("/gists/"+SY.id,{method:"PATCH",body:JSON.stringify({files:{"money.json":{content:JSON.stringify(payload())}}})}).then(()=>sync("☁ Synced")).catch(()=>sync(navigator.onLine?"Sync error: saved on this device":"Offline: saved on this device, will sync later")),600)}
@@ -115,14 +124,14 @@ async function cloud(){
  try{
   if(!SY.id){let g=null;for(let p=1;p<=10&&!g;p++){const l=await GH("/gists?per_page=100&page="+p);if(!l.length)break;g=l.find(x=>x.description==="money-tracker-data")}
    SY.id=g?g.id:(await GH("/gists",{method:"POST",body:JSON.stringify({description:"money-tracker-data",public:false,files:{"money.json":{content:JSON.stringify(payload())}}})})).id;
-   localStorage.setItem(SK,JSON.stringify(SY))}
+   lss(SK,JSON.stringify(SY))}
   const g=await GH("/gists/"+SY.id),f=g.files&&g.files["money.json"];let d=null;if(f){const txt=f.truncated&&f.raw_url?await fetch(f.raw_url).then(r=>{if(!r.ok)throw new Error(r.status);return r.text()}):f.content;d=JSON.parse(txt)}
   if(d){const th=S.theme,m=merge(S,d);S=Object.assign(DEF(),m,{theme:th});migrate();keep();render();
    if(JSON.stringify(payload())!==JSON.stringify(d))push();else sync("☁ Synced")}else push()
  }catch(e){sync(navigator.onLine?"Sync error: check your token":"Offline: saved on this device")}}
 function setupSync(){const t=prompt("Paste your GitHub token (classic token with only the “gist” permission). Leave empty to turn cloud sync off.",SY.t||"");
- if(t===null)return;SY=t.trim()?{t:t.trim()}:{};localStorage.setItem(SK,JSON.stringify(SY));cloud()}
-function exportData(){const b=new Blob([JSON.stringify(payload(),null,1)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="money-backup-"+todayStr()+".json";a.click();try{localStorage.setItem("money-lastbk",String(Date.now()))}catch(e){}toast("Backup downloaded ✓");if(TB==="ov"||TB==="mo")render()}
+ if(t===null)return;SY=t.trim()?{t:t.trim()}:{};lss(SK,JSON.stringify(SY));cloud()}
+function exportData(){const b=new Blob([JSON.stringify(payload(),null,1)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="money-backup-"+todayStr()+".json";a.click();lss("money-lastbk",String(Date.now()));toast("Backup downloaded ✓");if(TB==="ov"||TB==="mo")render()}
 function replaceAll(d){const now=Date.now(),th=S.theme,ids=new Set((d.tx||[]).map(t=>t.id));
  const gone=S.tx.filter(t=>!ids.has(t.id)).map(t=>Object.assign({},t,{x:1,m:now}));
  S=Object.assign(DEF(),d,{theme:th});S.tx=(d.tx||[]).map(t=>Object.assign({},t,{m:now})).concat(gone);migrate();save();render()}
@@ -212,7 +221,7 @@ function rOv(){const b=balances(),tot=r2(S.acc.reduce((a,x)=>a+b[x.id],0)),sv=r2
  const cats=Object.entries(st.cats).sort((a,b)=>b[1]-a[1]),cmax=cats.length?cats[0][1]:1,buds=Object.entries(S.bud).filter(e=>e[1]>0);
 
  let h=t.length?"":`<div class="card"><h2>Welcome 👋</h2><div class="lbl" style="font-size:14px">1) On each account below tap <b>Set balance</b> and enter what you have right now.<br>2) Tap the <b>＋</b> button to add your spending. It remembers your usual items, so <i>fare</i> or <i>water</i> fill themselves in.<br>3) Have your old Excel data? Go to <b>More → Import backup</b> and choose <b>money-import.json</b>.</div></div>`;
- const lb=+(localStorage.getItem("money-lastbk")||0)||+(localStorage.getItem("money-first")||0)||Date.now();
+ const lb=+(lsg("money-lastbk")||0)||+(lsg("money-first")||0)||Date.now();
  if(t.length&&!SY.t&&Date.now()-lb>30*864e5)h+=`<div class="card" style="border-color:var(--pen)"><h2>🛟 Time for a backup</h2><div class="lbl" style="font-size:14px">Your last backup was ${Math.floor((Date.now()-lb)/864e5)} days ago and cloud sync is off. Your data lives only on this device. Save a backup file (or turn on cloud sync) so years of history are never lost.</div><div class="row"><button id="bkn">⬇ Export backup now</button></div></div>`;
  h+=`<div class="card"><div class="lbl">Total money</div><div class="big">${fmt(tot)}</div><div class="lbl">Spendable ${fmt(r2(tot-sv))} · In savings ${fmt(sv)}${spToday?` · Spent today ${fmt(spToday)}`:""}</div></div>
  <div class="grid">${S.acc.map(a=>`<div class="card"><div class="lbl">${esc(a.n)}</div><div class="big sm ${b[a.id]<0?"neg":""}">${fmt(b[a.id])}</div><button class="g sm" data-sb="${a.id}" style="margin-top:6px">Set balance</button></div>`).join("")}</div>
@@ -242,7 +251,7 @@ function trendCard(){
 function yearCard(){const ys=[...new Set(live().map(t=>t.d.slice(0,4)))].sort().reverse();if(ys.length<2)return"";
  return`<div class="card"><h2>Year by year</h2>${ys.map(y=>{let inc=0,exp=0,n=0;for(let m=1;m<=12;m++){const q=mstats(y+"-"+pad(m));inc+=q.inc;exp+=q.exp;n+=q.n}return`<div class="bl" data-yr="${y}" style="cursor:pointer"><div><div class="nt" style="font-weight:600">${y}</div><div class="lbl">${n} entries</div></div><div style="text-align:right"><div class="neg">spent ${fmt(exp)}</div><div class="pos">in ${fmt(inc)}</div></div></div>`}).join("")}<div class="lbl">Tap a year to open it in the Ledger.</div></div>`}
 /* ---------- ledger ---------- */
-let LM=CM,LT="",LA="",LC="",LY="",LQ="",LOPEN={},LD=todayStr();
+let LM=CM,LT="",LA="",LC="",LY="",LMP=false,LPY=+CM.slice(0,4),LQ="",LOPEN={},LD=todayStr();
 const CMP=v=>v>=10000?Math.round(v/1000)+"k":v>=1000?(v/1000).toFixed(1).replace(/\.0$/,"")+"k":String(Math.round(v));
 const monthOpts=()=>{const ys=live().map(t=>+t.d.slice(0,4)),cy=+CM.slice(0,4),y0=Math.min(cy-1,...ys),y1=Math.max(cy+1,...ys),o=[];for(let y=y1;y>=y0;y--)for(let m=12;m>=1;m--)o.push(y+"-"+pad(m));return o};
 const setLM=m=>{LM=m;LY="";LD=m===CM?todayStr():""};
@@ -266,28 +275,35 @@ function rLg(){const all=live();let l=all.map((t,i)=>({t,i}));
  const bm={};ts0.forEach(t=>(bm[ym(t.d)]=bm[ym(t.d)]||[]).push(t));const ml=Object.keys(bm).sort().reverse();
  const sec=m=>{const ts=bm[m],open=m in LOPEN?LOPEN[m]:(m===CM||!!LM||ml.length===1);
   return`<details class="mo" data-lm="${m}"${open?" open":""}><summary><b>${mname(m)}</b><span class="lbl">${ts.length} entries · <span class="pos">in ${fmt(got(ts))}</span> · <span class="neg">out ${fmt(spent(ts))}</span></span></summary><div class="in">${days(ts)}</div></details>`};
- let cal="";
- if(LM){const y=+LM.slice(0,4),mo=+LM.slice(5)-1,first=new Date(y,mo,1).getDay(),dim=new Date(y,mo+1,0).getDate(),by={},tdy=todayStr();
+ let cal="";const tdy=todayStr(),sm=ts=>`${ts.length} transaction${ts.length===1?"":"s"} · spent ${fmt(spent(ts))} · received ${fmt(got(ts))}`;
+ const addBtn=d=>`<button class="fw" data-lad="${d||""}">＋ Add transaction${d?" · "+dlabel(d):""}</button>`;
+ if(LM){const y=+LM.slice(0,4),mo=+LM.slice(5)-1,first=new Date(y,mo,1).getDay(),dim=new Date(y,mo+1,0).getDate(),by={};
   ts0.forEach(t=>{const x=by[t.d]=by[t.d]||{exp:0,inc:0,n:0};x.n++;if(t.t==="exp")x.exp+=t.amt;else if(t.t==="inc")x.inc+=t.amt;else if(t.t==="trf"&&t.fee)x.exp+=t.fee});
   let cells="";for(let i=0;i<first;i++)cells+='<span class="cd e"></span>';
   for(let d=1;d<=dim;d++){const dt=LM+"-"+pad(d),x=by[dt]||{exp:0,inc:0,n:0};cells+=`<button type="button" class="cd${dt===tdy?" td":""}${dt===LD?" sel":""}" data-cd="${dt}"><b>${d}</b><span class="ca${x.exp?"":" in"}">${x.exp?CMP(x.exp):x.inc?"+"+CMP(x.inc):x.n?"•":""}</span></button>`}
-  const dayTs=LD&&ym(LD)===LM?ts0.filter(t=>t.d===LD):null;
-  cal=`<div class="card"><div class="row sp"><h2 style="margin:0">${mname(LM)}</h2><span class="lbl">Today is ${dlabel(tdy)}</span></div><div class="cal"><div class="cw">${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(x=>`<span>${x}</span>`).join("")}</div><div class="cg">${cells}</div></div><div class="lbl" style="margin-top:6px"><span style="color:var(--bad)">Red</span> = spent that day · <span style="color:var(--ok)">green</span> = money received · tap a day to see it</div></div>`+
-  (dayTs?`<div class="card"><div class="row sp"><h2 style="margin:0">${dlabel(LD)}</h2><button class="g sm" data-lmo="1">Show whole month</button></div><div class="lbl">${dayTs.length?`${dayTs.length} transaction${dayTs.length===1?"":"s"} · spent ${fmt(spent(dayTs))}${got(dayTs)?" · received "+fmt(got(dayTs)):""}`:"No transactions on this day."}</div>${dayTs.length?`<div style="margin-top:6px">${dayTs.map(row).join("")}</div>`:""}<div class="row"><button class="sm" data-lad="1">＋ Add for this day</button></div></div>`:
-   (ml.length?ml.map(sec).join(""):'<div class="card"><div class="lbl">Nothing in this month yet. Tap a day, then “Add for this day”, or use ＋.</div></div>'))}
- else cal=ml.length?ml.map(sec).join(""):'<div class="card"><div class="lbl">Nothing here yet. Tap ＋ to add a transaction.</div></div>';
- $("p-lg").innerHTML=`<div class="card"><div class="row"><button class="ic" data-lk="-1"${LM?"":" disabled"}>‹</button><select id="lgm" style="flex:1"><option value="">All months</option>${monthOpts().map(m=>`<option value="${m}"${m===LM?" selected":""}>${mname(m)}</option>`).join("")}</select><button class="ic" data-lk="1"${LM?"":" disabled"}>›</button></div>
- <div class="row"><select id="lgt"><option value="">All types</option>${TT.map(x=>`<option value="${x[0]}"${x[0]===LT?" selected":""}>${x[1]}</option>`).join("")}</select><select id="lga"><option value="">All accounts</option>${S.acc.map(a=>`<option value="${a.id}"${a.id===LA?" selected":""}>${esc(a.n)}</option>`).join("")}</select></div>
+  const dayTs=LD&&ym(LD)===LM?ts0.filter(t=>t.d===LD):null,hasM=new Set(live().map(t=>ym(t.d)));
+  const picker=LMP?`<div class="mp"><div class="nav"><button class="ic" data-py="-1">‹</button><b>${LPY}</b><button class="ic" data-py="1">›</button></div><div class="mg">${[1,2,3,4,5,6,7,8,9,10,11,12].map(m=>{const k=LPY+"-"+pad(m);return`<button data-pm="${k}" class="${k===LM?"on":""}${hasM.has(k)?" has":""}">${new Date(2000,m-1,1).toLocaleString("en-US",{month:"short"})}</button>`}).join("")}</div><div class="row"><button class="g sm" data-pm="all">All months</button><button class="g sm" data-pm="${CM}">Today</button></div><div class="lbl">Bold months have entries.</div></div>`:"";
+  cal=`<div class="card"><div class="cnav"><button class="ic" data-lk="-1" aria-label="Previous month">‹</button><button class="ctt" id="lgtt">${mname(LM)} <span>${LMP?"▴":"▾"}</span></button><button class="ic" data-lk="1" aria-label="Next month">›</button></div>${picker}<div class="cal"><div class="cw">${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(x=>`<span>${x}</span>`).join("")}</div><div class="cg">${cells}</div></div><div class="lbl" style="margin-top:6px"><span style="color:var(--bad)">Red</span> = spent · <span style="color:var(--ok)">green</span> = received · swipe or tap ‹ › to change month, tap the month name for other years</div></div>`+
+  `<div class="card">${addBtn(dayTs?LD:(LM===CM?tdy:LM+"-01"))}`+(dayTs?`<h2 style="margin:14px 0 2px">${dlabel(LD)}</h2><div class="lbl">${dayTs.length?sm(dayTs):"No transactions on this day."}</div>${dayTs.length?`<div style="margin-top:6px">${dayTs.map(row).join("")}</div>`:""}<div class="row"><button class="g sm" data-lmo="1">Show whole month</button></div>`:`<h2 style="margin:14px 0 2px">${mname(LM)}</h2><div class="lbl">${sm(ts0)}</div>`)+`</div>`+
+  (dayTs?"":(ml.length?ml.map(sec).join(""):'<div class="card"><div class="lbl">Nothing in this month yet. Tap a day, or use ＋.</div></div>'))}
+ else cal=`<div class="card">${addBtn("")}<div class="lbl" style="margin-top:10px">${sm(ts0)}${LY?" · "+LY:" · all months"}</div><div class="row"><button class="g sm" data-lto="1">📅 Back to calendar</button></div></div>`+(ml.length?ml.map(sec).join(""):'<div class="card"><div class="lbl">Nothing here yet. Tap ＋ to add a transaction.</div></div>');
+ $("p-lg").innerHTML=`<div class="card"><div class="row"><select id="lgt"><option value="">All types</option>${TT.map(x=>`<option value="${x[0]}"${x[0]===LT?" selected":""}>${x[1]}</option>`).join("")}</select><select id="lga"><option value="">All accounts</option>${S.acc.map(a=>`<option value="${a.id}"${a.id===LA?" selected":""}>${esc(a.n)}</option>`).join("")}</select></div>
  <div class="row"><select id="lgc" style="flex:1"><option value="">All categories</option><optgroup label="Expenses">${catList("e").map(c=>`<option value="e:${esc(c)}"${LC==="e:"+c?" selected":""}>${esc(c)}</option>`).join("")}</optgroup><optgroup label="Income sources">${catList("i").map(c=>`<option value="i:${esc(c)}"${LC==="i:"+c?" selected":""}>${esc(c)}</option>`).join("")}</optgroup></select><button class="g sm" id="lge">✎ Edit</button></div>
- <input id="lgq" placeholder="Search notes…" value="${esc(LQ)}" style="width:100%"><div class="lbl" style="margin-top:8px">${inM.length} transaction${inM.length===1?"":"s"}${LM?" in "+mname(LM):LY?" in "+LY:" in all months"} · spent ${fmt(spent(ts0))} · received ${fmt(got(ts0))}</div>${LY?`<div class="row"><span class="chip">Year ${LY} <a href="#" id="lgyx" style="text-decoration:none;color:var(--bad)">✕</a></span></div>`:""}${LM&&(LQ||LC)?`<div class="lbl" style="margin-top:4px">Looking only in ${mname(LM)}. <a href="#" id="lgall" style="color:var(--ac)">Look in all months</a></div>`:""}</div>${cal}`;
- $("lgm").onchange=e=>{setLM(e.target.value);rLg()};$("lgt").onchange=e=>{LT=e.target.value;rLg()};$("lga").onchange=e=>{LA=e.target.value;rLg()};$("lgc").onchange=e=>{LC=e.target.value;rLg()};$("lge").onclick=()=>catManager(LC.startsWith("i:")?"i":"e");
+ <input id="lgq" placeholder="Search notes…" value="${esc(LQ)}" style="width:100%">${LY?`<div class="row"><span class="chip">Year ${LY} <a href="#" id="lgyx" style="text-decoration:none;color:var(--bad)">✕</a></span></div>`:""}${LM&&(LQ||LC)?`<div class="lbl" style="margin-top:6px">Looking only in ${mname(LM)}. <a href="#" id="lgall" style="color:var(--ac)">Look in all months</a></div>`:""}</div>${cal}`;
+ $("lgt").onchange=e=>{LT=e.target.value;rLg()};$("lga").onchange=e=>{LA=e.target.value;rLg()};$("lgc").onchange=e=>{LC=e.target.value;rLg()};$("lge").onclick=()=>catManager(LC.startsWith("i:")?"i":"e");
  {const a=$("lgall");if(a)a.onclick=e=>{e.preventDefault();LM="";LD="";rLg()};const y=$("lgyx");if(y)y.onclick=e=>{e.preventDefault();LY="";rLg()}}
  $("lgq").oninput=e=>{LQ=e.target.value;clearTimeout(rLg.t);rLg.t=setTimeout(()=>{rLg();const q=$("lgq");q.focus();q.setSelectionRange(q.value.length,q.value.length)},250)};
- document.querySelectorAll("#p-lg [data-lk]").forEach(b=>b.onclick=()=>{setLM(shiftM(LM,+b.dataset.lk));rLg()});
- document.querySelectorAll("#p-lg [data-cd]").forEach(b=>b.onclick=()=>{LD=LD===b.dataset.cd?"":b.dataset.cd;rLg()});
- document.querySelectorAll("#p-lg [data-lmo]").forEach(b=>b.onclick=()=>{LD="";rLg()});
- document.querySelectorAll("#p-lg [data-lad]").forEach(b=>b.onclick=()=>openTx({d:LD}));
- document.querySelectorAll("#p-lg details.mo").forEach(d=>d.ontoggle=()=>{LOPEN[d.dataset.lm]=d.open});wire()}
+ const P=document.querySelectorAll.bind(document);
+ P("#p-lg [data-lk]").forEach(b=>b.onclick=()=>{setLM(shiftM(LM,+b.dataset.lk));LPY=+LM.slice(0,4);rLg()});
+ {const t=$("lgtt");if(t)t.onclick=()=>{LMP=!LMP;LPY=+LM.slice(0,4);rLg()}}
+ P("#p-lg [data-py]").forEach(b=>b.onclick=()=>{LPY+=+b.dataset.py;rLg()});
+ P("#p-lg [data-pm]").forEach(b=>b.onclick=()=>{LMP=false;if(b.dataset.pm==="all"){LM="";LD="";LY=""}else setLM(b.dataset.pm);rLg()});
+ P("#p-lg [data-lto]").forEach(b=>b.onclick=()=>{setLM(CM);LMP=false;LD=tdy;rLg()});
+ {const g=document.querySelector("#p-lg .cg");if(g){let x0=null;g.addEventListener("touchstart",e=>{x0=e.touches[0].clientX},{passive:true});g.addEventListener("touchend",e=>{if(x0===null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)>60){setLM(shiftM(LM,dx<0?1:-1));LPY=+LM.slice(0,4);rLg()}},{passive:true})}}
+ P("#p-lg [data-cd]").forEach(b=>b.onclick=()=>{LD=LD===b.dataset.cd?"":b.dataset.cd;rLg()});
+ P("#p-lg [data-lmo]").forEach(b=>b.onclick=()=>{LD="";rLg()});
+ P("#p-lg [data-lad]").forEach(b=>b.onclick=()=>openTx({d:b.dataset.lad||tdy}));
+ P("#p-lg details.mo").forEach(d=>d.ontoggle=()=>{LOPEN[d.dataset.lm]=d.open});wire()}
 function editTx(id){const t=S.tx.find(x=>x.id===id);if(!t)return;openTx(Object.assign({},t,{amt:String(t.amt),fee:t.fee?String(t.fee):""}))}
 /* ---------- category manager ---------- */
 let CK="e",DX=-1;
@@ -383,7 +399,7 @@ function rMo(){const b=balances();
  $("addacc").onclick=()=>editAcc();$("ecat").onclick=()=>catManager("e");wireLog();$("bsync").onclick=setupSync;$("bexp").onclick=exportData;$("bimp").onclick=()=>$("imp").click();
  $("bres").onclick=()=>{if(confirm("Erase ALL transactions, bills and plans on this device (and your cloud copy)? An undo point is kept in More → Your log.")&&confirm("Really erase everything? Export a backup first if unsure.")){const th=S.theme,now=Date.now(),g=S.tx.map(t=>Object.assign({},t,{x:1,m:now}));snap("Before erase");S=Object.assign(DEF(),{theme:th});S.tx=g;save();render();toast("Erased")}};
  wire()}
-function logCard(){const all=S.tx,lv=live(),del=all.filter(t=>t.x&&t.amt),ds=lv.map(t=>t.d).sort(),sz=new Blob([JSON.stringify(S)]).size,pv=getPrev(),lb=+(localStorage.getItem("money-lastbk")||0);
+function logCard(){const all=S.tx,lv=live(),del=all.filter(t=>t.x&&t.amt),ds=lv.map(t=>t.d).sort(),sz=new Blob([JSON.stringify(S)]).size,pv=getPrev(),lb=+(lsg("money-lastbk")||0);
  return`<div class="card"><h2>Your log · kept for good</h2><div class="lbl" style="font-size:14px">${lv.length} entries${ds.length?` from ${dlabel(ds[0])} ${ds[0].slice(0,4)} to ${dlabel(ds[ds.length-1])} ${ds[ds.length-1].slice(0,4)}`:""} · ${del.length} deleted (still recoverable) · about ${sz<1048576?Math.round(sz/1024)+" KB":(sz/1048576).toFixed(1)+" MB"} used${sz>3e6?" ⚠ getting large, export a backup":""}</div>
  <div class="lbl" style="margin-top:4px">Nothing is ever erased for real: a deleted entry stays saved so you can bring it back. Last file backup: ${lb?new Date(lb).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"never"}.</div>
  <div class="row"><button class="g" id="bcsv">⬇ Export all entries (CSV)</button></div>
