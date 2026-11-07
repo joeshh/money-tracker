@@ -2,6 +2,8 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Money Tracker</title>
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" type="image/png" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Money"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="theme-color" content="#1f6f5c">
 <style>
 :root{--bg:#f4f2ee;--card:#fff;--tx:#1d1d1f;--mu:#6b6b72;--ac:#1f6f5c;--ok:#1f7a4d;--bad:#c0392b;--ln:#e6e3dd;--pen:#c27a00;--sh:0 1px 3px rgba(0,0,0,.06);color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141416;--card:#1f1f23;--tx:#ececee;--mu:#9a9aa3;--ac:#4cc3a0;--ok:#4cc38a;--bad:#ef7b7b;--ln:#33333a;--pen:#eba53f;--sh:none;color-scheme:dark}}
@@ -50,6 +52,8 @@ details.dd{border:0;box-shadow:none;margin:6px 0 0;background:none;border-radius
 details.mo{background:var(--card);border:1px solid var(--ln);border-radius:14px;margin-bottom:10px;box-shadow:var(--sh);overflow:hidden}details.mo>summary{cursor:pointer;padding:12px 14px;display:flex;justify-content:space-between;gap:8px;align-items:baseline;list-style:none;flex-wrap:wrap}details.mo>summary::-webkit-details-marker{display:none}details.mo>summary b{color:var(--ac);font-size:15px}details.mo .in{padding:0 14px 10px}
 .cc{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}.cc button{background:var(--bg);color:var(--tx);border:1px solid var(--ln);border-radius:16px;padding:6px 12px;font-size:14px}.cc button.on{background:var(--ac);color:#fff;border-color:var(--ac)}.cc button.nw{background:transparent;color:var(--mu)}
 .ch{display:block;max-width:none;font-family:inherit}.ch .cb2{fill:var(--ac);opacity:.78}.ch .cb2.sel{opacity:1;stroke:var(--tx);stroke-width:1.5}.ch .v{fill:var(--tx);font-size:11px;font-weight:600;text-anchor:middle}.ch .m{fill:var(--mu);font-size:11px;text-anchor:middle}.ch .ln{stroke:var(--pen);stroke-width:2;fill:none}.ch .dot{fill:var(--pen)}.ch .av{stroke:var(--mu);stroke-dasharray:4 4;stroke-width:1}.ch .bs{stroke:var(--ln)}.ch .hit{fill:transparent}
+.cr{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--ln)}.cr:first-of-type{border-top:0}.cr .lbl{margin-top:1px}.cr.dx{display:block;background:var(--bg);border-radius:10px;padding:10px;margin:4px 0}.cr.dx select{width:100%;margin:6px 0}
+.cc button.ed{background:transparent;color:var(--ac);border-style:dashed}
 .bg{display:grid;grid-template-columns:1fr 110px;gap:6px 10px;align-items:center;font-size:14px}.bg input{width:100%;text-align:right}
 </style></head><body><main>
 
@@ -98,7 +102,10 @@ function mstats(m){const o={inc:0,exp:0,sav:0,adj:0,cats:{},n:0};live().filter(t
 let pt,SY={};try{SY=JSON.parse(localStorage.getItem(SK)||"{}")}catch(e){}
 const sync=t=>{const e=$("sy");if(e)e.textContent=t};
 const payload=()=>{const d=JSON.parse(JSON.stringify(S));delete d.theme;return d};
-const keep=()=>{try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}};
+const keep=()=>{try{localStorage.setItem(LS,JSON.stringify(S));return true}catch(e){toast("⚠ This device’s storage is full. Export a backup now (More tab).");return false}};
+const snap=label=>{try{localStorage.setItem("money-prev",JSON.stringify({at:Date.now(),label,data:payload()}));return true}catch(e){return false}};
+const getPrev=()=>{try{return JSON.parse(localStorage.getItem("money-prev")||"null")}catch(e){return null}};
+try{if(!localStorage.getItem("money-first"))localStorage.setItem("money-first",String(Date.now()));if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
 const save=()=>{S.u=Date.now();keep();push()};
 const GH=(p,o)=>fetch("https://api.github.com"+p,Object.assign({},o,{headers:{Authorization:"Bearer "+SY.t,Accept:"application/vnd.github+json","Content-Type":"application/json"}})).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()});
 function push(){if(!SY.id)return;clearTimeout(pt);sync("Syncing…");pt=setTimeout(()=>GH("/gists/"+SY.id,{method:"PATCH",body:JSON.stringify({files:{"money.json":{content:JSON.stringify(payload())}}})}).then(()=>sync("☁ Synced")).catch(()=>sync(navigator.onLine?"Sync error: saved on this device":"Offline: saved on this device, will sync later")),600)}
@@ -106,21 +113,21 @@ function merge(a,b){const base=(b.u||0)>(a.u||0)?b:a,r=Object.assign({},base),m=
 async function cloud(){
  if(!SY.t){sync("Saved on this device only");return}
  try{
-  if(!SY.id){const l=await GH("/gists?per_page=100");const g=l.find(x=>x.description==="money-tracker-data");
+  if(!SY.id){let g=null;for(let p=1;p<=10&&!g;p++){const l=await GH("/gists?per_page=100&page="+p);if(!l.length)break;g=l.find(x=>x.description==="money-tracker-data")}
    SY.id=g?g.id:(await GH("/gists",{method:"POST",body:JSON.stringify({description:"money-tracker-data",public:false,files:{"money.json":{content:JSON.stringify(payload())}}})})).id;
    localStorage.setItem(SK,JSON.stringify(SY))}
-  const g=await GH("/gists/"+SY.id),f=g.files&&g.files["money.json"],d=f?JSON.parse(f.content):null;
+  const g=await GH("/gists/"+SY.id),f=g.files&&g.files["money.json"];let d=null;if(f){const txt=f.truncated&&f.raw_url?await fetch(f.raw_url).then(r=>{if(!r.ok)throw new Error(r.status);return r.text()}):f.content;d=JSON.parse(txt)}
   if(d){const th=S.theme,m=merge(S,d);S=Object.assign(DEF(),m,{theme:th});migrate();keep();render();
    if(JSON.stringify(payload())!==JSON.stringify(d))push();else sync("☁ Synced")}else push()
  }catch(e){sync(navigator.onLine?"Sync error: check your token":"Offline: saved on this device")}}
 function setupSync(){const t=prompt("Paste your GitHub token (classic token with only the “gist” permission). Leave empty to turn cloud sync off.",SY.t||"");
  if(t===null)return;SY=t.trim()?{t:t.trim()}:{};localStorage.setItem(SK,JSON.stringify(SY));cloud()}
-function exportData(){const b=new Blob([JSON.stringify(payload(),null,1)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="money-backup-"+todayStr()+".json";a.click()}
+function exportData(){const b=new Blob([JSON.stringify(payload(),null,1)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="money-backup-"+todayStr()+".json";a.click();try{localStorage.setItem("money-lastbk",String(Date.now()))}catch(e){}toast("Backup downloaded ✓");if(TB==="ov"||TB==="mo")render()}
 function replaceAll(d){const now=Date.now(),th=S.theme,ids=new Set((d.tx||[]).map(t=>t.id));
- const gone=S.tx.filter(t=>!ids.has(t.id)).map(t=>({id:t.id,x:1,m:now,d:t.d,t:t.t,amt:0}));
- S=Object.assign(DEF(),d,{theme:th});S.tx=(d.tx||[]).map(t=>Object.assign({m:now},t)).concat(gone);migrate();save();render()}
+ const gone=S.tx.filter(t=>!ids.has(t.id)).map(t=>Object.assign({},t,{x:1,m:now}));
+ S=Object.assign(DEF(),d,{theme:th});S.tx=(d.tx||[]).map(t=>Object.assign({},t,{m:now})).concat(gone);migrate();save();render()}
 function importData(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d||!Array.isArray(d.tx)||!Array.isArray(d.acc))throw 0;
- if(!confirm("Replace everything in the tracker with this file ("+d.tx.filter(t=>!t.x).length+" transactions)?"))return;replaceAll(d);toast("Imported ✓")}catch(e){alert("That file isn’t a valid backup.")}};r.readAsText(f)}
+ if(!confirm("Replace everything in the tracker with this file ("+d.tx.filter(t=>!t.x).length+" transactions)?\n\nYour current data is kept as an undo point (More → Your log)."))return;if(!snap("Before import")&&!confirm("Couldn’t save an undo point (storage is full). Continue anyway? Export a backup first if unsure."))return;replaceAll(d);toast("Imported ✓")}catch(e){alert("That file isn’t a valid backup.")}};r.readAsText(f)}
 $("imp").onchange=e=>{importData(e.target.files[0]);e.target.value=""};
 /* ---------- helpers: modal, toast, theme ---------- */
 let tt;function toast(m){$("tq").textContent=m;$("tq").classList.add("on");clearTimeout(tt);tt=setTimeout(()=>$("tq").classList.remove("on"),2200)}
@@ -154,19 +161,20 @@ function drawTx(){const t=TX,edit=!!t.id,lock=t.lock||"";
  const notes=[...new Set(live().map(x=>x.n).filter(Boolean))].slice(-300);
  let f="";
  const note=`<label class="fl">Note<input id="fn" list="nl" value="${esc(t.n)}" placeholder="${t.t==="inc"?"e.g. allowance from mama":"e.g. fare, lunch, load"}" autocomplete="off"></label><datalist id="nl">${notes.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>`;
- if(t.t==="exp")f=`<div class="lbl" style="margin-top:12px">Category · tap the one you used</div><div class="cc">${S.cat.map(c=>`<button type="button" data-cc="${esc(c)}" class="${t.c===c?"on":""}">${esc(c)}</button>`).join("")}<button type="button" data-cc="__new" class="nw">＋ New</button></div>`+tpSel(t)+(!edit&&!lock&&chips.length?`<div class="lbl">Quick pick a note</div><div class="chs">${chips.map(c=>`<button type="button" data-q="${esc(c)}">${esc(c)}</button>`).join("")}</div>`:"")+note+`<label class="fl">Paid from<select id="fx">${accOpts(t.a)}</select></label>`;
+ if(t.t==="exp")f=`<div class="lbl" style="margin-top:12px">Category · tap the one you used</div><div class="cc">${(S.cat.includes(t.c)||!t.c?S.cat:S.cat.concat([t.c])).map(c=>`<button type="button" data-cc="${esc(c)}" class="${t.c===c?"on":""}">${esc(c)}</button>`).join("")}<button type="button" data-cc="__new" class="nw">＋ New</button><button type="button" data-cc="__edit" class="ed">✎ Edit list</button></div>`+tpSel(t)+(!edit&&!lock&&chips.length?`<div class="lbl">Quick pick a note</div><div class="chs">${chips.map(c=>`<button type="button" data-q="${esc(c)}">${esc(c)}</button>`).join("")}</div>`:"")+note+`<label class="fl">Paid from<select id="fx">${accOpts(t.a)}</select></label>`;
  else if(t.t==="inc")f=note+`<label class="fl">Source<select id="fc">${catOpts(S.ic,t.c)}</select></label><label class="fl">Received in<select id="fx">${accOpts(t.a)}</select></label>`;
  else if(t.t==="trf")f=`<label class="fl">From<select id="fx">${accOpts(t.a)}</select></label><label class="fl">To<select id="fy">${accOpts(t.b)}</select></label><label class="fl">Fee (e.g. GCash cash-out), optional<input id="ff" inputmode="decimal" value="${esc(t.fee)}" placeholder="0"></label>`+note;
  else if(t.t==="debt"){const ps=[...new Set(live().filter(x=>x.t==="debt").map(x=>x.w))];f=`<label class="fl">Person<input id="fw" list="pl_" value="${esc(t.w)}" placeholder="Who?" autocomplete="off"></label><datalist id="pl_">${ps.map(p=>`<option value="${esc(p)}">`).join("")}</datalist><label class="fl">What happened<select id="fk"><option value="-1"${t.dr<0?" selected":""}>Money going out (I lent, or I paid them back)</option><option value="1"${t.dr>0?" selected":""}>Money coming in (I borrowed, or they paid me back)</option></select></label><label class="fl">Account<select id="fx">${accOpts(t.a)}</select></label>`+note}
  else f=note+`<label class="fl">Account<select id="fx">${accOpts(t.a)}</select></label>`;
  openM(`<h2>${lock?esc(lock):edit?"Edit transaction":"Add a transaction"}</h2>`+(lock||t.t==="adj"?"":`<div class="seg">${TT.map(x=>`<button type="button" data-t="${x[0]}" class="${t.t===x[0]?"on":""}">${x[1]}</button>`).join("")}</div>`)+
  `<label class="fl">${t.t==="adj"?"Adjustment (use − for money that went missing)":"Amount (₱)"}<input id="fa" class="amt" inputmode="decimal" value="${esc(t.amt)}" placeholder="0" autocomplete="off"></label>${f}<label class="fl">Date<input id="fd" type="date" value="${esc(t.d)}"></label>
- <div class="row sp" style="margin-top:14px">${edit?'<button class="g dl" id="tdel">Delete</button>':"<span></span>"}<span class="row"><button class="g" id="tcx">Cancel</button>${edit||lock?"":'<button class="g" id="tmore">Save &amp; add another</button>'}<button id="tok">Save</button></span></div>`);
+ <div class="row sp" style="margin-top:14px">${edit?'<button class="g dl" id="tdel">Delete</button>':"<span></span>"}<span class="row">${edit&&!t.lock&&t.t!=="adj"?'<button class="g" id="tdup">Duplicate</button>':""}<button class="g" id="tcx">Cancel</button>${edit||lock?"":'<button class="g" id="tmore">Save &amp; add another</button>'}<button id="tok">Save</button></span></div>`);
  document.querySelectorAll("#MB [data-t]").forEach(b=>b.onclick=()=>{collect();TX.t=b.dataset.t;if(TX.t==="exp"&&!S.cat.includes(TX.c))TX.c="";if(TX.t==="inc"&&!S.ic.includes(TX.c))TX.c=S.ic[0];if(TX.t==="trf"&&TX.b===TX.a)TX.b=(S.acc.find(x=>x.id!==TX.a)||{}).id;drawTx()});
- document.querySelectorAll("#MB [data-cc]").forEach(b=>b.onclick=()=>{if(b.dataset.cc==="__new"){collect();const n=(prompt("New category name:")||"").trim();if(n){if(!S.cat.includes(n)){S.cat.push(n);save()}TX.c=n}drawTx();return}TX.c=b.dataset.cc;document.querySelectorAll("#MB [data-cc]").forEach(x=>x.classList.toggle("on",x===b));const w=$("tpw");if(w)w.hidden=!planCats().has(TX.c)});
+ document.querySelectorAll("#MB [data-cc]").forEach(b=>b.onclick=()=>{if(b.dataset.cc==="__edit"){collect();catManager("e",()=>drawTx());return}if(b.dataset.cc==="__new"){collect();const n=(prompt("New category name:")||"").trim();if(n){if(!S.cat.includes(n)){S.cat.push(n);save()}TX.c=n}drawTx();return}TX.c=b.dataset.cc;document.querySelectorAll("#MB [data-cc]").forEach(x=>x.classList.toggle("on",x===b));const w=$("tpw");if(w)w.hidden=!planCats().has(TX.c)});
  document.querySelectorAll("#MB [data-q]").forEach(b=>b.onclick=()=>{$("fn").value=b.dataset.q;autofill()});
  if($("fn"))$("fn").onchange=autofill;
  $("tcx").onclick=closeM;$("tok").onclick=()=>saveTx(false);if($("tmore"))$("tmore").onclick=()=>saveTx(true);
+ if($("tdup"))$("tdup").onclick=()=>{collect();const c=Object.assign({},TX);["id","bl","bm","m","x"].forEach(k=>delete c[k]);c.d=todayStr();openTx(c);toast("Copy ready: change what you need and save")};
  if(edit)$("tdel").onclick=()=>{if(confirm("Delete this transaction?")){const o=S.tx.find(x=>x.id===t.id);if(o){o.x=1;o.m=Date.now()}save();closeM();render();toast("Deleted")}};
  if(!edit)setTimeout(()=>{const e=$("fa");if(e)e.focus()},80)}
 function autofill(){const n=$("fn").value.trim().toLowerCase();if(!n||TX.id||TX.t==="adj")return;const p=live().filter(x=>x.t===TX.t&&x.n&&x.n.toLowerCase()===n).pop();if(!p)return;
@@ -204,13 +212,16 @@ function rOv(){const b=balances(),tot=r2(S.acc.reduce((a,x)=>a+b[x.id],0)),sv=r2
  const cats=Object.entries(st.cats).sort((a,b)=>b[1]-a[1]),cmax=cats.length?cats[0][1]:1,buds=Object.entries(S.bud).filter(e=>e[1]>0);
 
  let h=t.length?"":`<div class="card"><h2>Welcome 👋</h2><div class="lbl" style="font-size:14px">1) On each account below tap <b>Set balance</b> and enter what you have right now.<br>2) Tap the <b>＋</b> button to add your spending. It remembers your usual items, so <i>fare</i> or <i>water</i> fill themselves in.<br>3) Have your old Excel data? Go to <b>More → Import backup</b> and choose <b>money-import.json</b>.</div></div>`;
+ const lb=+(localStorage.getItem("money-lastbk")||0)||+(localStorage.getItem("money-first")||0)||Date.now();
+ if(t.length&&!SY.t&&Date.now()-lb>30*864e5)h+=`<div class="card" style="border-color:var(--pen)"><h2>🛟 Time for a backup</h2><div class="lbl" style="font-size:14px">Your last backup was ${Math.floor((Date.now()-lb)/864e5)} days ago and cloud sync is off. Your data lives only on this device. Save a backup file (or turn on cloud sync) so years of history are never lost.</div><div class="row"><button id="bkn">⬇ Export backup now</button></div></div>`;
  h+=`<div class="card"><div class="lbl">Total money</div><div class="big">${fmt(tot)}</div><div class="lbl">Spendable ${fmt(r2(tot-sv))} · In savings ${fmt(sv)}${spToday?` · Spent today ${fmt(spToday)}`:""}</div></div>
  <div class="grid">${S.acc.map(a=>`<div class="card"><div class="lbl">${esc(a.n)}</div><div class="big sm ${b[a.id]<0?"neg":""}">${fmt(b[a.id])}</div><button class="g sm" data-sb="${a.id}" style="margin-top:6px">Set balance</button></div>`).join("")}</div>
  <div class="card">${nav("ov",OM)}<div class="grid"><div><div class="lbl">Income</div><div class="big sm pos">${fmt(st.inc)}</div></div><div><div class="lbl">Spent</div><div class="big sm">${fmt(st.exp)}</div></div><div><div class="lbl">Moved to savings</div><div class="big sm">${fmt(st.sav)}</div></div><div><div class="lbl">Left over</div><div class="big sm ${net<0?"neg":"pos"}">${fmt(net)}</div></div></div>
  <div class="lbl">About ${fmt(st.exp/Math.max(1,days))} per day${st.adj?` · ${st.adj<0?"Missing":"Extra"} money found in checks: ${fmt(Math.abs(st.adj))}`:""}</div></div>`;
  if(cats.length)h+=`<div class="card"><h2>Where the money went · ${mname(OM)}</h2>${cats.map(([c,v])=>`<div class="cb"><span class="n">${esc(c)}</span><div class="bar"><i style="width:${v/cmax*100}%"></i></div><span class="v">${fmt(v)}</span></div>`).join("")}</div>`;
- h+=trendCard();
+ h+=trendCard()+yearCard();
  $("p-ov").innerHTML=h;wire();
+ const bk=$("bkn");if(bk)bk.onclick=exportData;document.querySelectorAll("#p-ov [data-yr]").forEach(e=>e.onclick=()=>{LY=e.dataset.yr;LM="";LD="";LC="";tab("lg")});
  const tn=$("trn");if(tn){tn.value=String(TRN);tn.onchange=e=>{TRN=+e.target.value;rOv()}}
  document.querySelectorAll("#p-ov [data-bm]").forEach(e=>e.onclick=()=>{OM=e.dataset.bm;rOv();window.scrollTo({top:0,behavior:"smooth"})});
  const sc=$("trs");if(sc)sc.scrollLeft=sc.scrollWidth}
@@ -228,13 +239,18 @@ function trendCard(){
  <div class="lbl" style="margin:6px 0">${used.length?`Highest ${fmtI(hi)} (${mshort(ms[vals.indexOf(hi)])}) · Lowest ${fmtI(lo)} (${mshort(ms[vals.indexOf(lo)])}) · Average ${fmtI(avg)} a month`:"Nothing spent yet. Your chart will appear as you add expenses."}</div>
  <div id="trs" style="overflow-x:auto"><div style="min-width:${W}px">${svg}</div></div>
  <div class="lbl"><span style="color:var(--ac)">■</span> money spent that month (expenses and fees). Tap a month to look at it above.</div></div>`}
+function yearCard(){const ys=[...new Set(live().map(t=>t.d.slice(0,4)))].sort().reverse();if(ys.length<2)return"";
+ return`<div class="card"><h2>Year by year</h2>${ys.map(y=>{let inc=0,exp=0,n=0;for(let m=1;m<=12;m++){const q=mstats(y+"-"+pad(m));inc+=q.inc;exp+=q.exp;n+=q.n}return`<div class="bl" data-yr="${y}" style="cursor:pointer"><div><div class="nt" style="font-weight:600">${y}</div><div class="lbl">${n} entries</div></div><div style="text-align:right"><div class="neg">spent ${fmt(exp)}</div><div class="pos">in ${fmt(inc)}</div></div></div>`}).join("")}<div class="lbl">Tap a year to open it in the Ledger.</div></div>`}
 /* ---------- ledger ---------- */
-let LM=CM,LT="",LA="",LQ="",LOPEN={},LD=todayStr();
+let LM=CM,LT="",LA="",LC="",LY="",LQ="",LOPEN={},LD=todayStr();
 const CMP=v=>v>=10000?Math.round(v/1000)+"k":v>=1000?(v/1000).toFixed(1).replace(/\.0$/,"")+"k":String(Math.round(v));
 const monthOpts=()=>{const ys=live().map(t=>+t.d.slice(0,4)),cy=+CM.slice(0,4),y0=Math.min(cy-1,...ys),y1=Math.max(cy+1,...ys),o=[];for(let y=y1;y>=y0;y--)for(let m=12;m>=1;m--)o.push(y+"-"+pad(m));return o};
-const setLM=m=>{LM=m;LD=m===CM?todayStr():""};
+const setLM=m=>{LM=m;LY="";LD=m===CM?todayStr():""};
+const isE=t=>t.t==="exp"||t.t==="adj",hasCat=(t,k,n)=>k==="e"?(isE(t)&&(t.c||"Other")===n)||(n==="Fees"&&t.t==="trf"&&!!t.fee):(t.t==="inc"&&(t.c||"Income")===n);
+function catList(k){const u=live().filter(t=>k==="e"?isE(t):t.t==="inc").map(t=>t.c||(k==="e"?"Other":"Income"));return[...new Set((k==="e"?S.cat:S.ic).concat(u))]}
 function rLg(){const all=live();let l=all.map((t,i)=>({t,i}));
- if(LT)l=l.filter(o=>o.t.t===LT);if(LA)l=l.filter(o=>o.t.a===LA||o.t.b===LA);
+ if(LT)l=l.filter(o=>o.t.t===LT);if(LA)l=l.filter(o=>o.t.a===LA||o.t.b===LA);if(LY)l=l.filter(o=>o.t.d.startsWith(LY));
+ if(LC)l=l.filter(o=>hasCat(o.t,LC[0],LC.slice(2)));
  if(LQ){const q=LQ.toLowerCase();l=l.filter(o=>((o.t.n||"")+" "+(o.t.c||"")+" "+(o.t.w||"")).toLowerCase().includes(q))}
  l.sort((a,b)=>b.t.d.localeCompare(a.t.d)||b.i-a.i);
  const row=t=>{let nt=t.n||(t.t==="trf"?aname(t.a)+" → "+aname(t.b):t.t==="debt"?t.w:t.t==="adj"?"Balance check":t.c||"(no note)"),sb,am,cl="";
@@ -262,8 +278,10 @@ function rLg(){const all=live();let l=all.map((t,i)=>({t,i}));
  else cal=ml.length?ml.map(sec).join(""):'<div class="card"><div class="lbl">Nothing here yet. Tap ＋ to add a transaction.</div></div>';
  $("p-lg").innerHTML=`<div class="card"><div class="row"><button class="ic" data-lk="-1"${LM?"":" disabled"}>‹</button><select id="lgm" style="flex:1"><option value="">All months</option>${monthOpts().map(m=>`<option value="${m}"${m===LM?" selected":""}>${mname(m)}</option>`).join("")}</select><button class="ic" data-lk="1"${LM?"":" disabled"}>›</button></div>
  <div class="row"><select id="lgt"><option value="">All types</option>${TT.map(x=>`<option value="${x[0]}"${x[0]===LT?" selected":""}>${x[1]}</option>`).join("")}</select><select id="lga"><option value="">All accounts</option>${S.acc.map(a=>`<option value="${a.id}"${a.id===LA?" selected":""}>${esc(a.n)}</option>`).join("")}</select></div>
- <input id="lgq" placeholder="Search notes…" value="${esc(LQ)}" style="width:100%"><div class="lbl" style="margin-top:8px">${inM.length} transaction${inM.length===1?"":"s"}${LM?" in "+mname(LM):" in all months"} · spent ${fmt(spent(ts0))} · received ${fmt(got(ts0))}</div></div>${cal}`;
- $("lgm").onchange=e=>{setLM(e.target.value);rLg()};$("lgt").onchange=e=>{LT=e.target.value;rLg()};$("lga").onchange=e=>{LA=e.target.value;rLg()};
+ <div class="row"><select id="lgc" style="flex:1"><option value="">All categories</option><optgroup label="Expenses">${catList("e").map(c=>`<option value="e:${esc(c)}"${LC==="e:"+c?" selected":""}>${esc(c)}</option>`).join("")}</optgroup><optgroup label="Income sources">${catList("i").map(c=>`<option value="i:${esc(c)}"${LC==="i:"+c?" selected":""}>${esc(c)}</option>`).join("")}</optgroup></select><button class="g sm" id="lge">✎ Edit</button></div>
+ <input id="lgq" placeholder="Search notes…" value="${esc(LQ)}" style="width:100%"><div class="lbl" style="margin-top:8px">${inM.length} transaction${inM.length===1?"":"s"}${LM?" in "+mname(LM):LY?" in "+LY:" in all months"} · spent ${fmt(spent(ts0))} · received ${fmt(got(ts0))}</div>${LY?`<div class="row"><span class="chip">Year ${LY} <a href="#" id="lgyx" style="text-decoration:none;color:var(--bad)">✕</a></span></div>`:""}${LM&&(LQ||LC)?`<div class="lbl" style="margin-top:4px">Looking only in ${mname(LM)}. <a href="#" id="lgall" style="color:var(--ac)">Look in all months</a></div>`:""}</div>${cal}`;
+ $("lgm").onchange=e=>{setLM(e.target.value);rLg()};$("lgt").onchange=e=>{LT=e.target.value;rLg()};$("lga").onchange=e=>{LA=e.target.value;rLg()};$("lgc").onchange=e=>{LC=e.target.value;rLg()};$("lge").onclick=()=>catManager(LC.startsWith("i:")?"i":"e");
+ {const a=$("lgall");if(a)a.onclick=e=>{e.preventDefault();LM="";LD="";rLg()};const y=$("lgyx");if(y)y.onclick=e=>{e.preventDefault();LY="";rLg()}}
  $("lgq").oninput=e=>{LQ=e.target.value;clearTimeout(rLg.t);rLg.t=setTimeout(()=>{rLg();const q=$("lgq");q.focus();q.setSelectionRange(q.value.length,q.value.length)},250)};
  document.querySelectorAll("#p-lg [data-lk]").forEach(b=>b.onclick=()=>{setLM(shiftM(LM,+b.dataset.lk));rLg()});
  document.querySelectorAll("#p-lg [data-cd]").forEach(b=>b.onclick=()=>{LD=LD===b.dataset.cd?"":b.dataset.cd;rLg()});
@@ -271,6 +289,34 @@ function rLg(){const all=live();let l=all.map((t,i)=>({t,i}));
  document.querySelectorAll("#p-lg [data-lad]").forEach(b=>b.onclick=()=>openTx({d:LD}));
  document.querySelectorAll("#p-lg details.mo").forEach(d=>d.ontoggle=()=>{LOPEN[d.dataset.lm]=d.open});wire()}
 function editTx(id){const t=S.tx.find(x=>x.id===id);if(!t)return;openTx(Object.assign({},t,{amt:String(t.amt),fee:t.fee?String(t.fee):""}))}
+/* ---------- category manager ---------- */
+let CK="e",DX=-1;
+const CLOCK=["Fees","Unrecorded"];
+function catManager(kind,back){if(kind)CK=kind;const ex=CK==="e",list=ex?S.cat:S.ic;
+ const bound=n=>ex&&(S.bills.some(b=>b.c===n)||S.plans.some(p=>p.c===n)),cnt=n=>live().filter(t=>hasCat(t,CK,n)).length;
+ const row=(c,i)=>{const n=cnt(c),lk=ex&&CLOCK.includes(c),bd=bound(c);
+  if(i===DX){const o=list.filter(x=>x!==c);return`<div class="cr dx"><b>Delete “${esc(c)}”?</b><div class="lbl">${n?`Your ${n} entr${n===1?"y":"ies"} will never be deleted. Choose where they go:`:"No entries use it."}</div>${n?`<select id="cmto"><option value="">Keep them labelled “${esc(c)}”</option>${o.map(x=>`<option value="${esc(x)}">Move to ${esc(x)}</option>`).join("")}</select>`:""}<div class="row"><button class="g sm" data-cx="1">Cancel</button><button class="sm dl" style="background:var(--bad);color:#fff" data-cd2="${i}">Delete category</button></div></div>`}
+  return`<div class="cr"><div style="min-width:0"><div class="nt" style="font-weight:600;overflow-wrap:anywhere">${esc(c)}</div><div class="lbl">${n} entr${n===1?"y":"ies"}${lk?" · built in":bd?" · used by Bills/Tuition":""}</div></div><div class="row" style="flex-wrap:nowrap;margin:0">${lk?"":`<button class="g sm" data-cr="${i}">✎ Rename</button>`}${lk||bd?"":`<button class="g sm dl" data-cdl="${i}">Delete</button>`}</div></div>`};
+ openM(`<h2>Edit categories</h2><div class="seg"><button data-ck="e" class="${ex?"on":""}">Expenses</button><button data-ck="i" class="${ex?"":"on"}">Income sources</button></div><div class="lbl">Renaming updates every old entry. Deleting never deletes entries.</div>${list.map(row).join("")}<div class="row sp" style="margin-top:12px"><button class="g" id="cmadd">＋ Add new</button><button id="cmok">Done</button></div>`);
+ const again=()=>catManager(CK,back);
+ document.querySelectorAll("#MB [data-ck]").forEach(b=>b.onclick=()=>{CK=b.dataset.ck;DX=-1;again()});
+ document.querySelectorAll("#MB [data-cr]").forEach(b=>b.onclick=()=>{const o=list[+b.dataset.cr],n=prompt("Rename “"+o+"” to:",o);if(n===null)return;renameCat(CK,o,n.trim());again()});
+ document.querySelectorAll("#MB [data-cdl]").forEach(b=>b.onclick=()=>{DX=+b.dataset.cdl;again()});
+ document.querySelectorAll("#MB [data-cx]").forEach(b=>b.onclick=()=>{DX=-1;again()});
+ document.querySelectorAll("#MB [data-cd2]").forEach(b=>b.onclick=()=>{const o=list[+b.dataset.cd2],to=$("cmto")?$("cmto").value:"";DX=-1;delCat(CK,o,to);again()});
+ $("cmadd").onclick=()=>{const n=(prompt("New "+(ex?"category":"income source")+" name:")||"").trim();if(!n)return;if(list.includes(n)){alert("That name already exists.");return}list.push(n);save();render();again()};
+ $("cmok").onclick=()=>{DX=-1;closeM();if(back)back();else render()}}
+function renameCat(k,o,n){const ex=k==="e";if(!n||n===o)return;if(ex&&CLOCK.includes(o)){alert("“"+o+"” is built in and can’t be renamed.");return}
+ const list=ex?S.cat:S.ic,i=list.indexOf(o),now=Date.now();if(i<0)return;
+ if(list.includes(n)){if(!confirm("“"+n+"” already exists. Merge “"+o+"” into it?"))return;list.splice(i,1)}else list[i]=n;
+ S.tx.forEach(t=>{if(ex?(t.t==="exp"||t.t==="adj")&&t.c===o:t.t==="inc"&&t.c===o){t.c=n;t.m=now}});
+ if(ex){S.plans.forEach(p=>{if(p.c===o)p.c=n});S.bills.forEach(b=>{if(b.c===o)b.c=n})}
+ if(LC===k+":"+o)LC=k+":"+n;if(typeof TX==="object"&&TX&&TX.c===o)TX.c=n;save();render();toast("Renamed ✓")}
+function delCat(k,o,to){const ex=k==="e";if(ex&&(CLOCK.includes(o)||S.bills.some(b=>b.c===o)||S.plans.some(p=>p.c===o))){alert("This category is used by Bills or Tuition (or is built in), so it can’t be deleted.");return}
+ const list=ex?S.cat:S.ic,i=list.indexOf(o),now=Date.now();if(i<0)return;list.splice(i,1);
+ if(to)S.tx.forEach(t=>{if(ex?(t.t==="exp"||t.t==="adj")&&t.c===o:t.t==="inc"&&t.c===o){t.c=to;t.m=now}});
+ if(to&&LC===k+":"+o)LC=k+":"+to;if(!to&&LC===k+":"+o&&!catList(k).includes(o))LC="";if(typeof TX==="object"&&TX&&TX.c===o&&!to)TX.c="";
+ save();render();toast("Category deleted. Entries kept ✓")}
 /* ---------- bills (rent, wifi, electricity, water: fixed list) ---------- */
 let BM=CM;
 const billAmt=(b,m)=>b.var?(S.amt[b.id+"|"+m]!=null?S.amt[b.id+"|"+m]:null):(b.a||0);
@@ -330,14 +376,26 @@ function rDb(){const bal={};live().filter(t=>t.t==="debt").forEach(t=>{bal[t.w]=
 const TYP={cash:"Cash",ewallet:"E-wallet",bank:"Bank",savings:"Savings"};
 function rMo(){const b=balances();
  $("p-mo").innerHTML=`<div class="card"><h2>Accounts</h2>${S.acc.map(a=>`<div class="bl"><div><div class="nt" style="font-weight:600">${esc(a.n)}</div><div class="lbl">${TYP[a.t]||a.t} · ${fmt(b[a.id])}</div></div><button class="g sm" data-ea="${a.id}">⚙ Edit</button></div>`).join("")}<div class="row"><button class="g" id="addacc">＋ Add an account</button></div><div class="lbl">Money moved into a “Savings” account counts as saved, not spent.</div></div>
- <div class="card"><h2>Categories</h2><div class="lbl">Expenses</div><div>${S.cat.map(c=>`<span class="chip">${esc(c)} <a href="#" data-dc="${esc(c)}" style="color:var(--bad);text-decoration:none">×</a></span>`).join("")}</div><div class="row"><button class="g sm" data-ac="cat">＋ Add</button></div><div class="lbl" style="margin-top:8px">Income sources</div><div>${S.ic.map(c=>`<span class="chip">${esc(c)} <a href="#" data-di="${esc(c)}" style="color:var(--bad);text-decoration:none">×</a></span>`).join("")}</div><div class="row"><button class="g sm" data-ac="ic">＋ Add</button></div></div>
+ <div class="card"><h2>Categories</h2><div class="lbl">Expenses</div><div>${S.cat.map(c=>`<span class="chip">${esc(c)}</span>`).join("")}</div><div class="lbl" style="margin-top:8px">Income sources</div><div>${S.ic.map(c=>`<span class="chip">${esc(c)}</span>`).join("")}</div><div class="row"><button class="g" id="ecat">✎ Edit categories</button></div></div>
+ ${logCard()}
  <div class="card"><h2>Backup &amp; cloud sync</h2><div class="row"><button class="g" id="bsync">☁ Set up cloud sync</button><button class="g" id="bexp">⬇ Export backup</button><button class="g" id="bimp">⬆ Import backup</button></div><div class="lbl" style="margin-top:8px">Your data is always saved on this device and works offline. With cloud sync on, it is also copied to a private GitHub Gist and merged across your devices, so entries made on two devices are both kept. Importing a file replaces everything.</div></div>
  <div class="row"><button class="g dl" id="bres">Erase everything</button></div>`;
- $("addacc").onclick=()=>editAcc();$("bsync").onclick=setupSync;$("bexp").onclick=exportData;$("bimp").onclick=()=>$("imp").click();
- $("bres").onclick=()=>{if(confirm("Erase ALL transactions, bills and plans on this device (and your cloud copy)?")&&confirm("Really erase everything? Export a backup first if unsure.")){const th=S.theme,now=Date.now(),g=S.tx.map(t=>({id:t.id,x:1,m:now,d:t.d,t:t.t,amt:0}));S=Object.assign(DEF(),{theme:th});S.tx=g;save();render();toast("Erased")}};
- document.querySelectorAll("[data-ac]").forEach(e=>e.onclick=()=>{const n=(prompt("New name:")||"").trim(),k=e.dataset.ac;if(n&&!S[k].includes(n)){S[k].push(n);save();render()}});
- document.querySelectorAll("[data-dc]").forEach(e=>e.onclick=ev=>{ev.preventDefault();S.cat=S.cat.filter(c=>c!==e.dataset.dc);save();render()});
- document.querySelectorAll("[data-di]").forEach(e=>e.onclick=ev=>{ev.preventDefault();S.ic=S.ic.filter(c=>c!==e.dataset.di);save();render()});wire()}
+ $("addacc").onclick=()=>editAcc();$("ecat").onclick=()=>catManager("e");wireLog();$("bsync").onclick=setupSync;$("bexp").onclick=exportData;$("bimp").onclick=()=>$("imp").click();
+ $("bres").onclick=()=>{if(confirm("Erase ALL transactions, bills and plans on this device (and your cloud copy)? An undo point is kept in More → Your log.")&&confirm("Really erase everything? Export a backup first if unsure.")){const th=S.theme,now=Date.now(),g=S.tx.map(t=>Object.assign({},t,{x:1,m:now}));snap("Before erase");S=Object.assign(DEF(),{theme:th});S.tx=g;save();render();toast("Erased")}};
+ wire()}
+function logCard(){const all=S.tx,lv=live(),del=all.filter(t=>t.x&&t.amt),ds=lv.map(t=>t.d).sort(),sz=new Blob([JSON.stringify(S)]).size,pv=getPrev(),lb=+(localStorage.getItem("money-lastbk")||0);
+ return`<div class="card"><h2>Your log · kept for good</h2><div class="lbl" style="font-size:14px">${lv.length} entries${ds.length?` from ${dlabel(ds[0])} ${ds[0].slice(0,4)} to ${dlabel(ds[ds.length-1])} ${ds[ds.length-1].slice(0,4)}`:""} · ${del.length} deleted (still recoverable) · about ${sz<1048576?Math.round(sz/1024)+" KB":(sz/1048576).toFixed(1)+" MB"} used${sz>3e6?" ⚠ getting large, export a backup":""}</div>
+ <div class="lbl" style="margin-top:4px">Nothing is ever erased for real: a deleted entry stays saved so you can bring it back. Last file backup: ${lb?new Date(lb).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"never"}.</div>
+ <div class="row"><button class="g" id="bcsv">⬇ Export all entries (CSV)</button></div>
+ <details class="dd"><summary>Recently deleted (${del.length})</summary>${del.length?del.slice().sort((a,b)=>(b.m||0)-(a.m||0)).slice(0,40).map(t=>`<div class="bl"><div style="min-width:0"><div class="nt" style="font-weight:600;overflow-wrap:anywhere">${esc(t.n||t.c||t.w||(t.t==="trf"?"Transfer":"Entry"))}</div><div class="lbl">${dlabel(t.d)} · ${fmt(t.amt)}</div></div><button class="g sm" data-rs="${t.id}">Restore</button></div>`).join(""):'<div class="lbl">Nothing deleted.</div>'}</details>
+ ${pv?`<details class="dd"><summary>Undo point</summary><div class="lbl">${esc(pv.label)} · saved ${new Date(pv.at).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})} · ${(pv.data.tx||[]).filter(t=>!t.x).length} entries</div><div class="row"><button class="g" id="bundo">↩ Restore the undo point</button></div></details>`:""}
+ <div class="lbl" style="margin-top:8px">Tip: on iPhone, add the page to your Home Screen. Safari can clear the data of websites you don’t open for a few weeks; a Home Screen app is protected, and cloud sync or a backup file is the safety net.</div></div>`}
+function wireLog(){const c=$("bcsv");if(c)c.onclick=exportCsv;
+ document.querySelectorAll("[data-rs]").forEach(b=>b.onclick=()=>{const t=S.tx.find(x=>x.id===b.dataset.rs);if(t){delete t.x;t.m=Date.now();save();render();toast("Restored ✓")}});
+ const u=$("bundo");if(u)u.onclick=()=>{const p=getPrev();if(!p||!confirm("Go back to the data from before: “"+p.label+"”? Your current data will become the new undo point."))return;const d=p.data;snap("Before undo");replaceAll(d);toast("Undone ✓")}}
+function exportCsv(){const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"',ty={exp:"Expense",inc:"Income",trf:"Transfer",debt:"Debt",adj:"Balance check"};
+ const rows=[["Date","Type","Category","Note","Account","To account","Amount","Fee","Person","Debt direction"].map(q).join(",")].concat(live().slice().sort((a,b)=>a.d.localeCompare(b.d)).map(t=>[t.d,ty[t.t]||t.t,t.c||"",t.n||"",aname(t.a),t.b?aname(t.b):"",t.amt,t.fee||"",t.w||"",t.t==="debt"?(t.dr>0?"money in":"money out"):""].map(q).join(",")));
+ const b=new Blob(["\ufeff"+rows.join("\r\n")],{type:"text/csv"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="money-entries-"+todayStr()+".csv";a.click();toast("CSV downloaded ✓")}
 function editAcc(id){const a=accOf(id)||{n:"",t:"cash",o:0},used=id&&S.tx.some(t=>t.a===id||t.b===id);
  ask({title:id?"Edit account":"Add an account",fields:[{k:"n",l:"Name",v:a.n,ph:"e.g. BPI"},{k:"t",l:"Type",t:"select",opts:Object.entries(TYP),v:a.t},{k:"o",l:"Starting balance (₱) — balance before your first entry",t:"num",v:a.o||0}],
  save:v=>{if(!v.n){alert("Please enter a name.");return false}const o=Object.assign({},a,{id:a.id||uid(),n:v.n,t:v.t,o:v.o||0}),i=S.acc.findIndex(x=>x.id===o.id);if(i>=0)S.acc[i]=o;else S.acc.push(o);save();render()},
@@ -369,5 +427,6 @@ function tick(){const n=todayStr();if(n===TD)return;const old=ym(TD),was=TD;TD=n
 setInterval(tick,30000);addEventListener("focus",tick);
 migrate();theme();tab(TB);cloud();
 addEventListener("online",cloud);document.addEventListener("visibilitychange",()=>{if(!document.hidden){tick();cloud()}});
+const hashAdd=()=>{if(location.hash==="#add"){history.replaceState(null,"",location.pathname+location.search);setTimeout(()=>openTx(),150)}};hashAdd();addEventListener("hashchange",hashAdd);
 if("serviceWorker"in navigator&&location.protocol.indexOf("http")===0)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script></body></html>
