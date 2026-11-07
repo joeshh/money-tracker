@@ -50,7 +50,6 @@ details.dd{border:0;box-shadow:none;margin:6px 0 0;background:none;border-radius
 details.mo{background:var(--card);border:1px solid var(--ln);border-radius:14px;margin-bottom:10px;box-shadow:var(--sh);overflow:hidden}details.mo>summary{cursor:pointer;padding:12px 14px;display:flex;justify-content:space-between;gap:8px;align-items:baseline;list-style:none;flex-wrap:wrap}details.mo>summary::-webkit-details-marker{display:none}details.mo>summary b{color:var(--ac);font-size:15px}details.mo .in{padding:0 14px 10px}
 .cc{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}.cc button{background:var(--bg);color:var(--tx);border:1px solid var(--ln);border-radius:16px;padding:6px 12px;font-size:14px}.cc button.on{background:var(--ac);color:#fff;border-color:var(--ac)}.cc button.nw{background:transparent;color:var(--mu)}
 .ch{display:block;max-width:none;font-family:inherit}.ch .cb2{fill:var(--ac);opacity:.78}.ch .cb2.sel{opacity:1;stroke:var(--tx);stroke-width:1.5}.ch .v{fill:var(--tx);font-size:11px;font-weight:600;text-anchor:middle}.ch .m{fill:var(--mu);font-size:11px;text-anchor:middle}.ch .ln{stroke:var(--pen);stroke-width:2;fill:none}.ch .dot{fill:var(--pen)}.ch .av{stroke:var(--mu);stroke-dasharray:4 4;stroke-width:1}.ch .bs{stroke:var(--ln)}.ch .hit{fill:transparent}
-a{color:var(--ac)}
 .bg{display:grid;grid-template-columns:1fr 110px;gap:6px 10px;align-items:center;font-size:14px}.bg input{width:100%;text-align:right}
 </style></head><body><main>
 
@@ -107,19 +106,19 @@ function merge(a,b){const base=(b.u||0)>(a.u||0)?b:a,r=Object.assign({},base),m=
 async function cloud(){
  if(!SY.t){sync("Saved on this device only");return}
  try{
-  if(!SY.id){let g=null;for(let pg=1;pg<=10&&!g;pg++){const l=await GH("/gists?per_page=100&page="+pg);g=l.find(x=>x.description==="money-tracker-data");if(l.length<100)break}
+  if(!SY.id){const l=await GH("/gists?per_page=100");const g=l.find(x=>x.description==="money-tracker-data");
    SY.id=g?g.id:(await GH("/gists",{method:"POST",body:JSON.stringify({description:"money-tracker-data",public:false,files:{"money.json":{content:JSON.stringify(payload())}}})})).id;
    localStorage.setItem(SK,JSON.stringify(SY))}
-  const g=await GH("/gists/"+SY.id),f=g.files&&g.files["money.json"];let d=null;if(f){const txt=f.truncated&&f.raw_url?await fetch(f.raw_url).then(r=>{if(!r.ok)throw new Error(r.status);return r.text()}):f.content;d=JSON.parse(txt)}
+  const g=await GH("/gists/"+SY.id),f=g.files&&g.files["money.json"],d=f?JSON.parse(f.content):null;
   if(d){const th=S.theme,m=merge(S,d);S=Object.assign(DEF(),m,{theme:th});migrate();keep();render();
    if(JSON.stringify(payload())!==JSON.stringify(d))push();else sync("☁ Synced")}else push()
  }catch(e){sync(navigator.onLine?"Sync error: check your token":"Offline: saved on this device")}}
 function setupSync(){const t=prompt("Paste your GitHub token (classic token with only the “gist” permission). Leave empty to turn cloud sync off.",SY.t||"");
  if(t===null)return;SY=t.trim()?{t:t.trim()}:{};localStorage.setItem(SK,JSON.stringify(SY));cloud()}
-function exportData(){const b=new Blob([JSON.stringify(payload(),null,1)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="money-backup-"+todayStr()+".json";a.click();try{localStorage.setItem("money-lastbk",String(Date.now()))}catch(e){}}
-function replaceAll(d){const now=Date.now(),th=S.theme,ids=new Set((d.tx||[]).map(t=>t.id));snap();
- const gone=S.tx.filter(t=>!ids.has(t.id)).map(t=>Object.assign({},t,{x:1,m:now}));
- S=Object.assign(DEF(),d,{theme:th});S.tx=(d.tx||[]).map(t=>Object.assign({},t,{m:now})).concat(gone);migrate();save();render()}
+function exportData(){const b=new Blob([JSON.stringify(payload(),null,1)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="money-backup-"+todayStr()+".json";a.click()}
+function replaceAll(d){const now=Date.now(),th=S.theme,ids=new Set((d.tx||[]).map(t=>t.id));
+ const gone=S.tx.filter(t=>!ids.has(t.id)).map(t=>({id:t.id,x:1,m:now,d:t.d,t:t.t,amt:0}));
+ S=Object.assign(DEF(),d,{theme:th});S.tx=(d.tx||[]).map(t=>Object.assign({m:now},t)).concat(gone);migrate();save();render()}
 function importData(f){if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d||!Array.isArray(d.tx)||!Array.isArray(d.acc))throw 0;
  if(!confirm("Replace everything in the tracker with this file ("+d.tx.filter(t=>!t.x).length+" transactions)?"))return;replaceAll(d);toast("Imported ✓")}catch(e){alert("That file isn’t a valid backup.")}};r.readAsText(f)}
 $("imp").onchange=e=>{importData(e.target.files[0]);e.target.value=""};
@@ -134,7 +133,7 @@ function ask(o){
   else i=`<input id="q_${x.k}" type="${x.t==="num"?"text":x.t||"text"}"${x.t==="num"?' inputmode="decimal"':""} value="${esc(x.v==null?"":x.v)}" placeholder="${esc(x.ph||"")}">`;
   return x.t==="check"?`<label class="ck">${i} ${x.l}</label>`:`<label class="fl">${x.l}${i}</label>`}).join("");
  openM(`<h2>${o.title}</h2>${o.note?`<div class="lbl">${o.note}</div>`:""}${f}<div class="row sp" style="margin-top:14px">${o.del?'<button class="g dl" id="q_del">Delete</button>':"<span></span>"}<span class="row"><button class="g" id="q_cx">Cancel</button><button id="q_ok">${o.ok||"Save"}</button></span></div>`);
- $("q_cx").onclick=()=>{closeM();if(o.cancel)o.cancel()};if(o.del)$("q_del").onclick=()=>{if(o.del()!==false)closeM()};
+ $("q_cx").onclick=closeM;if(o.del)$("q_del").onclick=()=>{if(o.del()!==false)closeM()};
  if(o.live)(o.fields||[]).forEach(x=>{const e=$("q_"+x.k);if(e)e.oninput=()=>o.live(vals())});
  const vals=()=>{const v={};(o.fields||[]).forEach(x=>{const e=$("q_"+x.k);v[x.k]=x.t==="check"?e.checked:x.t==="num"?num(e.value):e.value.trim()});return v};
  $("q_ok").onclick=()=>{if(o.save(vals())!==false)closeM()};if(o.live)o.live(vals());
@@ -155,20 +154,19 @@ function drawTx(){const t=TX,edit=!!t.id,lock=t.lock||"";
  const notes=[...new Set(live().map(x=>x.n).filter(Boolean))].slice(-300);
  let f="";
  const note=`<label class="fl">Note<input id="fn" list="nl" value="${esc(t.n)}" placeholder="${t.t==="inc"?"e.g. allowance from mama":"e.g. fare, lunch, load"}" autocomplete="off"></label><datalist id="nl">${notes.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>`;
- if(t.t==="exp")f=`<div class="lbl" style="margin-top:12px">Category · tap the one you used</div><div class="cc">${S.cat.map(c=>`<button type="button" data-cc="${esc(c)}" class="${t.c===c?"on":""}">${esc(c)}</button>`).join("")}<button type="button" data-cc="__new" class="nw">＋ New</button><button type="button" data-cc="__edit" class="nw">✎ Edit list</button></div>`+tpSel(t)+(!edit&&!lock&&chips.length?`<div class="lbl">Quick pick a note</div><div class="chs">${chips.map(c=>`<button type="button" data-q="${esc(c)}">${esc(c)}</button>`).join("")}</div>`:"")+note+`<label class="fl">Paid from<select id="fx">${accOpts(t.a)}</select></label>`;
+ if(t.t==="exp")f=`<div class="lbl" style="margin-top:12px">Category · tap the one you used</div><div class="cc">${S.cat.map(c=>`<button type="button" data-cc="${esc(c)}" class="${t.c===c?"on":""}">${esc(c)}</button>`).join("")}<button type="button" data-cc="__new" class="nw">＋ New</button></div>`+tpSel(t)+(!edit&&!lock&&chips.length?`<div class="lbl">Quick pick a note</div><div class="chs">${chips.map(c=>`<button type="button" data-q="${esc(c)}">${esc(c)}</button>`).join("")}</div>`:"")+note+`<label class="fl">Paid from<select id="fx">${accOpts(t.a)}</select></label>`;
  else if(t.t==="inc")f=note+`<label class="fl">Source<select id="fc">${catOpts(S.ic,t.c)}</select></label><label class="fl">Received in<select id="fx">${accOpts(t.a)}</select></label>`;
  else if(t.t==="trf")f=`<label class="fl">From<select id="fx">${accOpts(t.a)}</select></label><label class="fl">To<select id="fy">${accOpts(t.b)}</select></label><label class="fl">Fee (e.g. GCash cash-out), optional<input id="ff" inputmode="decimal" value="${esc(t.fee)}" placeholder="0"></label>`+note;
  else if(t.t==="debt"){const ps=[...new Set(live().filter(x=>x.t==="debt").map(x=>x.w))];f=`<label class="fl">Person<input id="fw" list="pl_" value="${esc(t.w)}" placeholder="Who?" autocomplete="off"></label><datalist id="pl_">${ps.map(p=>`<option value="${esc(p)}">`).join("")}</datalist><label class="fl">What happened<select id="fk"><option value="-1"${t.dr<0?" selected":""}>Money going out (I lent, or I paid them back)</option><option value="1"${t.dr>0?" selected":""}>Money coming in (I borrowed, or they paid me back)</option></select></label><label class="fl">Account<select id="fx">${accOpts(t.a)}</select></label>`+note}
  else f=note+`<label class="fl">Account<select id="fx">${accOpts(t.a)}</select></label>`;
  openM(`<h2>${lock?esc(lock):edit?"Edit transaction":"Add a transaction"}</h2>`+(lock||t.t==="adj"?"":`<div class="seg">${TT.map(x=>`<button type="button" data-t="${x[0]}" class="${t.t===x[0]?"on":""}">${x[1]}</button>`).join("")}</div>`)+
  `<label class="fl">${t.t==="adj"?"Adjustment (use − for money that went missing)":"Amount (₱)"}<input id="fa" class="amt" inputmode="decimal" value="${esc(t.amt)}" placeholder="0" autocomplete="off"></label>${f}<label class="fl">Date<input id="fd" type="date" value="${esc(t.d)}"></label>
- <div class="row sp" style="margin-top:14px">${edit?'<span class="row"><button class="g dl" id="tdel">Delete</button><button class="g" id="tdup" title="Copy this entry to today">Duplicate</button></span>':"<span></span>"}<span class="row"><button class="g" id="tcx">Cancel</button>${edit||lock?"":'<button class="g" id="tmore">Save &amp; add another</button>'}<button id="tok">Save</button></span></div>`);
+ <div class="row sp" style="margin-top:14px">${edit?'<button class="g dl" id="tdel">Delete</button>':"<span></span>"}<span class="row"><button class="g" id="tcx">Cancel</button>${edit||lock?"":'<button class="g" id="tmore">Save &amp; add another</button>'}<button id="tok">Save</button></span></div>`);
  document.querySelectorAll("#MB [data-t]").forEach(b=>b.onclick=()=>{collect();TX.t=b.dataset.t;if(TX.t==="exp"&&!S.cat.includes(TX.c))TX.c="";if(TX.t==="inc"&&!S.ic.includes(TX.c))TX.c=S.ic[0];if(TX.t==="trf"&&TX.b===TX.a)TX.b=(S.acc.find(x=>x.id!==TX.a)||{}).id;drawTx()});
- document.querySelectorAll("#MB [data-cc]").forEach(b=>b.onclick=()=>{if(b.dataset.cc==="__edit"){collect();catManager(()=>drawTx());return}if(b.dataset.cc==="__new"){collect();const n=(prompt("New category name:")||"").trim();if(n){if(!S.cat.includes(n)){S.cat.push(n);save()}TX.c=n}drawTx();return}TX.c=b.dataset.cc;document.querySelectorAll("#MB [data-cc]").forEach(x=>x.classList.toggle("on",x===b));const w=$("tpw");if(w)w.hidden=!planCats().has(TX.c)});
+ document.querySelectorAll("#MB [data-cc]").forEach(b=>b.onclick=()=>{if(b.dataset.cc==="__new"){collect();const n=(prompt("New category name:")||"").trim();if(n){if(!S.cat.includes(n)){S.cat.push(n);save()}TX.c=n}drawTx();return}TX.c=b.dataset.cc;document.querySelectorAll("#MB [data-cc]").forEach(x=>x.classList.toggle("on",x===b));const w=$("tpw");if(w)w.hidden=!planCats().has(TX.c)});
  document.querySelectorAll("#MB [data-q]").forEach(b=>b.onclick=()=>{$("fn").value=b.dataset.q;autofill()});
  if($("fn"))$("fn").onchange=autofill;
  $("tcx").onclick=closeM;$("tok").onclick=()=>saveTx(false);if($("tmore"))$("tmore").onclick=()=>saveTx(true);
- if(edit)$("tdup").onclick=()=>{collect();const c=Object.assign({},TX);["id","bl","bm","m","x"].forEach(k=>delete c[k]);c.d=todayStr();openTx(c);toast("Copy ready: change what you need, then Save")};
  if(edit)$("tdel").onclick=()=>{if(confirm("Delete this transaction?")){const o=S.tx.find(x=>x.id===t.id);if(o){o.x=1;o.m=Date.now()}save();closeM();render();toast("Deleted")}};
  if(!edit)setTimeout(()=>{const e=$("fa");if(e)e.focus()},80)}
 function autofill(){const n=$("fn").value.trim().toLowerCase();if(!n||TX.id||TX.t==="adj")return;const p=live().filter(x=>x.t===TX.t&&x.n&&x.n.toLowerCase()===n).pop();if(!p)return;
@@ -206,17 +204,15 @@ function rOv(){const b=balances(),tot=r2(S.acc.reduce((a,x)=>a+b[x.id],0)),sv=r2
  const cats=Object.entries(st.cats).sort((a,b)=>b[1]-a[1]),cmax=cats.length?cats[0][1]:1,buds=Object.entries(S.bud).filter(e=>e[1]>0);
 
  let h=t.length?"":`<div class="card"><h2>Welcome 👋</h2><div class="lbl" style="font-size:14px">1) On each account below tap <b>Set balance</b> and enter what you have right now.<br>2) Tap the <b>＋</b> button to add your spending. It remembers your usual items, so <i>fare</i> or <i>water</i> fill themselves in.<br>3) Have your old Excel data? Go to <b>More → Import backup</b> and choose <b>money-import.json</b>.</div></div>`;
- h+=bkNudge();h+=`<div class="card"><div class="lbl">Total money</div><div class="big">${fmt(tot)}</div><div class="lbl">Spendable ${fmt(r2(tot-sv))} · In savings ${fmt(sv)}${spToday?` · Spent today ${fmt(spToday)}`:""}</div></div>
+ h+=`<div class="card"><div class="lbl">Total money</div><div class="big">${fmt(tot)}</div><div class="lbl">Spendable ${fmt(r2(tot-sv))} · In savings ${fmt(sv)}${spToday?` · Spent today ${fmt(spToday)}`:""}</div></div>
  <div class="grid">${S.acc.map(a=>`<div class="card"><div class="lbl">${esc(a.n)}</div><div class="big sm ${b[a.id]<0?"neg":""}">${fmt(b[a.id])}</div><button class="g sm" data-sb="${a.id}" style="margin-top:6px">Set balance</button></div>`).join("")}</div>
  <div class="card">${nav("ov",OM)}<div class="grid"><div><div class="lbl">Income</div><div class="big sm pos">${fmt(st.inc)}</div></div><div><div class="lbl">Spent</div><div class="big sm">${fmt(st.exp)}</div></div><div><div class="lbl">Moved to savings</div><div class="big sm">${fmt(st.sav)}</div></div><div><div class="lbl">Left over</div><div class="big sm ${net<0?"neg":"pos"}">${fmt(net)}</div></div></div>
  <div class="lbl">About ${fmt(st.exp/Math.max(1,days))} per day${st.adj?` · ${st.adj<0?"Missing":"Extra"} money found in checks: ${fmt(Math.abs(st.adj))}`:""}</div></div>`;
  if(cats.length)h+=`<div class="card"><h2>Where the money went · ${mname(OM)}</h2>${cats.map(([c,v])=>`<div class="cb"><span class="n">${esc(c)}</span><div class="bar"><i style="width:${v/cmax*100}%"></i></div><span class="v">${fmt(v)}</span></div>`).join("")}</div>`;
- h+=trendCard()+yearCard();
+ h+=trendCard();
  $("p-ov").innerHTML=h;wire();
  const tn=$("trn");if(tn){tn.value=String(TRN);tn.onchange=e=>{TRN=+e.target.value;rOv()}}
  document.querySelectorAll("#p-ov [data-bm]").forEach(e=>e.onclick=()=>{OM=e.dataset.bm;rOv();window.scrollTo({top:0,behavior:"smooth"})});
- document.querySelectorAll("#p-ov [data-yr]").forEach(e=>e.onclick=()=>{const y=e.dataset.yr,last=live().filter(t=>t.d.startsWith(y)).reduce((m,t)=>t.d>m?t.d:m,"");setLM(last.slice(0,7));tab("lg")});
- document.querySelectorAll("#p-ov [data-go]").forEach(e=>e.onclick=()=>tab(e.dataset.go));const bk=$("bkn");if(bk)bk.onclick=()=>{exportData();rOv()};
  const sc=$("trs");if(sc)sc.scrollLeft=sc.scrollWidth}
 let TRN=6;const fmtI=n=>"₱"+Math.round(n).toLocaleString("en-PH");
 function trendCard(){
@@ -233,13 +229,12 @@ function trendCard(){
  <div id="trs" style="overflow-x:auto"><div style="min-width:${W}px">${svg}</div></div>
  <div class="lbl"><span style="color:var(--ac)">■</span> money spent that month (expenses and fees). Tap a month to look at it above.</div></div>`}
 /* ---------- ledger ---------- */
-let LM=CM,LT="",LA="",LQ="",LC="",LOPEN={},LD=todayStr();
+let LM=CM,LT="",LA="",LQ="",LOPEN={},LD=todayStr();
 const CMP=v=>v>=10000?Math.round(v/1000)+"k":v>=1000?(v/1000).toFixed(1).replace(/\.0$/,"")+"k":String(Math.round(v));
 const monthOpts=()=>{const ys=live().map(t=>+t.d.slice(0,4)),cy=+CM.slice(0,4),y0=Math.min(cy-1,...ys),y1=Math.max(cy+1,...ys),o=[];for(let y=y1;y>=y0;y--)for(let m=12;m>=1;m--)o.push(y+"-"+pad(m));return o};
 const setLM=m=>{LM=m;LD=m===CM?todayStr():""};
 function rLg(){const all=live();let l=all.map((t,i)=>({t,i}));
  if(LT)l=l.filter(o=>o.t.t===LT);if(LA)l=l.filter(o=>o.t.a===LA||o.t.b===LA);
- if(LC){const k=LC[0],c=LC.slice(2);l=l.filter(o=>{const t=o.t;return k==="i"?(t.t==="inc"&&t.c===c):(((t.t==="exp"||t.t==="adj")&&t.c===c)||(c==="Fees"&&t.t==="trf"&&t.fee>0))})}
  if(LQ){const q=LQ.toLowerCase();l=l.filter(o=>((o.t.n||"")+" "+(o.t.c||"")+" "+(o.t.w||"")).toLowerCase().includes(q))}
  l.sort((a,b)=>b.t.d.localeCompare(a.t.d)||b.i-a.i);
  const row=t=>{let nt=t.n||(t.t==="trf"?aname(t.a)+" → "+aname(t.b):t.t==="debt"?t.w:t.t==="adj"?"Balance check":t.c||"(no note)"),sb,am,cl="";
@@ -267,8 +262,7 @@ function rLg(){const all=live();let l=all.map((t,i)=>({t,i}));
  else cal=ml.length?ml.map(sec).join(""):'<div class="card"><div class="lbl">Nothing here yet. Tap ＋ to add a transaction.</div></div>';
  $("p-lg").innerHTML=`<div class="card"><div class="row"><button class="ic" data-lk="-1"${LM?"":" disabled"}>‹</button><select id="lgm" style="flex:1"><option value="">All months</option>${monthOpts().map(m=>`<option value="${m}"${m===LM?" selected":""}>${mname(m)}</option>`).join("")}</select><button class="ic" data-lk="1"${LM?"":" disabled"}>›</button></div>
  <div class="row"><select id="lgt"><option value="">All types</option>${TT.map(x=>`<option value="${x[0]}"${x[0]===LT?" selected":""}>${x[1]}</option>`).join("")}</select><select id="lga"><option value="">All accounts</option>${S.acc.map(a=>`<option value="${a.id}"${a.id===LA?" selected":""}>${esc(a.n)}</option>`).join("")}</select></div>
- <div class="row"><select id="lgc" style="flex:1">${catFilterOpts()}</select><button class="ic" id="lgce" title="Rename, add or delete categories">✎ Edit</button></div><input id="lgq" placeholder="Search notes…" value="${esc(LQ)}" style="width:100%"><div class="lbl" style="margin-top:8px">${inM.length} transaction${inM.length===1?"":"s"}${LM?" in "+mname(LM):" in all months"} · spent ${fmt(spent(ts0))} · received ${fmt(got(ts0))}${LM&&(LQ||LC)?` · <a href="#" id="lgall">look in all months</a>`:""}</div></div>${cal}`;
- $("lgc").onchange=e=>{LC=e.target.value;rLg()};$("lgce").onclick=()=>catManager(()=>{closeM();render()});const la=$("lgall");if(la)la.onclick=e=>{e.preventDefault();setLM("");rLg()};
+ <input id="lgq" placeholder="Search notes…" value="${esc(LQ)}" style="width:100%"><div class="lbl" style="margin-top:8px">${inM.length} transaction${inM.length===1?"":"s"}${LM?" in "+mname(LM):" in all months"} · spent ${fmt(spent(ts0))} · received ${fmt(got(ts0))}</div></div>${cal}`;
  $("lgm").onchange=e=>{setLM(e.target.value);rLg()};$("lgt").onchange=e=>{LT=e.target.value;rLg()};$("lga").onchange=e=>{LA=e.target.value;rLg()};
  $("lgq").oninput=e=>{LQ=e.target.value;clearTimeout(rLg.t);rLg.t=setTimeout(()=>{rLg();const q=$("lgq");q.focus();q.setSelectionRange(q.value.length,q.value.length)},250)};
  document.querySelectorAll("#p-lg [data-lk]").forEach(b=>b.onclick=()=>{setLM(shiftM(LM,+b.dataset.lk));rLg()});
@@ -277,36 +271,6 @@ function rLg(){const all=live();let l=all.map((t,i)=>({t,i}));
  document.querySelectorAll("#p-lg [data-lad]").forEach(b=>b.onclick=()=>openTx({d:LD}));
  document.querySelectorAll("#p-lg details.mo").forEach(d=>d.ontoggle=()=>{LOPEN[d.dataset.lm]=d.open});wire()}
 function editTx(id){const t=S.tx.find(x=>x.id===id);if(!t)return;openTx(Object.assign({},t,{amt:String(t.amt),fee:t.fee?String(t.fee):""}))}
-/* ---------- categories: filter list, rename, delete ---------- */
-const LOCKED=["Fees","Unrecorded"];
-function catLists(){const e=S.cat.slice(),i=S.ic.slice();S.tx.forEach(t=>{if(t.x)return;if(t.t==="exp"&&t.c&&!e.includes(t.c))e.push(t.c);if(t.t==="inc"&&t.c&&!i.includes(t.c))i.push(t.c)});return{e,i}}
-function catFilterOpts(){const{e,i}=catLists(),o=(k,c)=>`<option value="${k}:${esc(c)}"${LC===k+":"+c?" selected":""}>${esc(c)}</option>`;
- return`<option value="">All categories</option><optgroup label="Expenses">${e.map(c=>o("e",c)).join("")}</optgroup><optgroup label="Income sources">${i.map(c=>o("i",c)).join("")}</optgroup>`}
-const catCount=(k,c)=>S.tx.filter(t=>!t.x&&t.c===c&&(k==="cat"?t.t==="exp":t.t==="inc")).length;
-const catUsedByApp=c=>S.bills.some(b=>b.c===c)||S.plans.some(p=>p.c===c);
-function catManager(back){
- const row=(k,c,i)=>{const n=catCount(k,c),lock=k==="cat"&&LOCKED.includes(c);
-  return`<div class="bl"><div><span class="nt" style="font-weight:600">${esc(c)}</span> <span class="lbl">${n} entr${n===1?"y":"ies"}${lock?" · 🔒 used by the app":""}</span></div>${lock?"":`<span class="row"><button class="g sm" data-cr="${k}|${i}">✎ Rename</button><button class="g sm dl" data-cx="${k}|${i}">Delete</button></span>`}</div>`};
- openM(`<h2>Edit categories</h2><div class="lbl">Renaming changes the category on all your old entries too. Deleting never deletes entries.</div><h3>Expense categories</h3>${S.cat.map((c,i)=>row("cat",c,i)).join("")}<div class="row"><button class="g sm" data-ca="cat">＋ Add expense category</button></div><h3>Income sources</h3>${S.ic.map((c,i)=>row("ic",c,i)).join("")}<div class="row"><button class="g sm" data-ca="ic">＋ Add income source</button></div><div class="row sp" style="margin-top:14px"><span></span><button id="cmdone">Done</button></div>`);
- const again=()=>setTimeout(()=>catManager(back),0);
- $("cmdone").onclick=()=>back?back():closeM();
- document.querySelectorAll("#MB [data-ca]").forEach(b=>b.onclick=()=>{const k=b.dataset.ca;
-  ask({title:k==="cat"?"Add expense category":"Add income source",fields:[{k:"n",l:"Name"}],cancel:again,save:v=>{if(!v.n)return false;if(S[k].includes(v.n)){alert("That name already exists.");return false}S[k].push(v.n);save();again()}})});
- document.querySelectorAll("#MB [data-cr]").forEach(b=>{const[k,i]=b.dataset.cr.split("|"),old=S[k][+i];
-  b.onclick=()=>ask({title:"Rename “"+esc(old)+"”",note:"All entries using this name are updated.",fields:[{k:"n",l:"New name",v:old}],cancel:again,save:v=>{if(!v.n)return false;if(v.n===old){again();return}
-   if(S[k].includes(v.n)&&!confirm("“"+v.n+"” already exists. Merge “"+old+"” into it?"))return false;renameCat(k,old,v.n);toast("Renamed ✓");again()}})});
- document.querySelectorAll("#MB [data-cx]").forEach(b=>{const[k,i]=b.dataset.cx.split("|"),name=S[k][+i];b.onclick=()=>delCat(k,name,again)})}
-function renameCat(k,old,nw){const now=Date.now(),L=S[k];
- S.tx.forEach(t=>{if(t.c===old&&(k==="cat"?t.t==="exp":t.t==="inc")){t.c=nw;t.m=now}});
- if(k==="cat"){S.plans.forEach(p=>{if(p.c===old)p.c=nw});S.bills.forEach(b=>{if(b.c===old)b.c=nw})}
- const i=L.indexOf(old);if(L.includes(nw))L.splice(i,1);else L[i]=nw;
- if(TX&&TX.c===old)TX.c=nw;if(LC==="e:"+old||LC==="i:"+old)LC=(k==="cat"?"e:":"i:")+nw;save()}
-function delCat(k,name,again){
- if(k==="cat"&&catUsedByApp(name)){alert("“"+name+"” is used by Bills or Tuition, so it can’t be deleted. You can rename it instead.");return}
- const n=catCount(k,name),others=S[k].filter(c=>c!==name);
- if(!n){if(confirm("Delete “"+name+"”? No entries use it.")){S[k]=others;if(LC.slice(2)===name)LC="";save();again()}return}
- ask({title:"Delete “"+esc(name)+"”",note:n+" entr"+(n===1?"y uses":"ies use")+" this. Your entries are never deleted.",fields:[{k:"to",l:"What should happen to those entries?",t:"select",opts:[["","Keep them labelled “"+name+"”"]].concat(others.map(c=>[c,"Move them to "+c])),v:""}],ok:"Delete category",cancel:again,
-  save:v=>{if(v.to)renameCat(k,name,v.to);else{S[k]=others;save()}again()}})}
 /* ---------- bills (rent, wifi, electricity, water: fixed list) ---------- */
 let BM=CM;
 const billAmt=(b,m)=>b.var?(S.amt[b.id+"|"+m]!=null?S.amt[b.id+"|"+m]:null):(b.a||0);
@@ -366,41 +330,18 @@ function rDb(){const bal={};live().filter(t=>t.t==="debt").forEach(t=>{bal[t.w]=
 const TYP={cash:"Cash",ewallet:"E-wallet",bank:"Bank",savings:"Savings"};
 function rMo(){const b=balances();
  $("p-mo").innerHTML=`<div class="card"><h2>Accounts</h2>${S.acc.map(a=>`<div class="bl"><div><div class="nt" style="font-weight:600">${esc(a.n)}</div><div class="lbl">${TYP[a.t]||a.t} · ${fmt(b[a.id])}</div></div><button class="g sm" data-ea="${a.id}">⚙ Edit</button></div>`).join("")}<div class="row"><button class="g" id="addacc">＋ Add an account</button></div><div class="lbl">Money moved into a “Savings” account counts as saved, not spent.</div></div>
- <div class="card"><h2>Categories</h2><div class="lbl">Expenses</div><div>${S.cat.map(c=>`<span class="chip">${esc(c)}</span>`).join("")}</div><div class="lbl" style="margin-top:8px">Income sources</div><div>${S.ic.map(c=>`<span class="chip">${esc(c)}</span>`).join("")}</div><div class="row"><button class="g" id="bcat">✎ Edit categories</button></div></div>
- ${longCard()}<div class="card"><h2>Backup &amp; cloud sync</h2><div class="row"><button class="g" id="bsync">☁ Set up cloud sync</button><button class="g" id="bexp">⬇ Export backup</button><button class="g" id="bimp">⬆ Import backup</button></div><div class="lbl" style="margin-top:8px">Your data is always saved on this device and works offline. With cloud sync on, it is also copied to a private GitHub Gist and merged across your devices, so entries made on two devices are both kept. Importing a file replaces everything (you can undo it from “Your log” above).</div></div>
+ <div class="card"><h2>Categories</h2><div class="lbl">Expenses</div><div>${S.cat.map(c=>`<span class="chip">${esc(c)} <a href="#" data-dc="${esc(c)}" style="color:var(--bad);text-decoration:none">×</a></span>`).join("")}</div><div class="row"><button class="g sm" data-ac="cat">＋ Add</button></div><div class="lbl" style="margin-top:8px">Income sources</div><div>${S.ic.map(c=>`<span class="chip">${esc(c)} <a href="#" data-di="${esc(c)}" style="color:var(--bad);text-decoration:none">×</a></span>`).join("")}</div><div class="row"><button class="g sm" data-ac="ic">＋ Add</button></div></div>
+ <div class="card"><h2>Backup &amp; cloud sync</h2><div class="row"><button class="g" id="bsync">☁ Set up cloud sync</button><button class="g" id="bexp">⬇ Export backup</button><button class="g" id="bimp">⬆ Import backup</button></div><div class="lbl" style="margin-top:8px">Your data is always saved on this device and works offline. With cloud sync on, it is also copied to a private GitHub Gist and merged across your devices, so entries made on two devices are both kept. Importing a file replaces everything.</div></div>
  <div class="row"><button class="g dl" id="bres">Erase everything</button></div>`;
  $("addacc").onclick=()=>editAcc();$("bsync").onclick=setupSync;$("bexp").onclick=exportData;$("bimp").onclick=()=>$("imp").click();
- $("bres").onclick=()=>{if(confirm("Erase ALL transactions, bills and plans on this device (and your cloud copy)? You can still undo this from More → Your log.")&&confirm("Really erase everything? Export a backup first if unsure.")){snap();const th=S.theme,now=Date.now(),g=S.tx.map(t=>({id:t.id,x:1,m:now,d:t.d,t:t.t,amt:0}));S=Object.assign(DEF(),{theme:th});S.tx=g;save();render();toast("Erased")}};
- $("bcat").onclick=()=>catManager(()=>{closeM();render()});
- LONG();wire()}
+ $("bres").onclick=()=>{if(confirm("Erase ALL transactions, bills and plans on this device (and your cloud copy)?")&&confirm("Really erase everything? Export a backup first if unsure.")){const th=S.theme,now=Date.now(),g=S.tx.map(t=>({id:t.id,x:1,m:now,d:t.d,t:t.t,amt:0}));S=Object.assign(DEF(),{theme:th});S.tx=g;save();render();toast("Erased")}};
+ document.querySelectorAll("[data-ac]").forEach(e=>e.onclick=()=>{const n=(prompt("New name:")||"").trim(),k=e.dataset.ac;if(n&&!S[k].includes(n)){S[k].push(n);save();render()}});
+ document.querySelectorAll("[data-dc]").forEach(e=>e.onclick=ev=>{ev.preventDefault();S.cat=S.cat.filter(c=>c!==e.dataset.dc);save();render()});
+ document.querySelectorAll("[data-di]").forEach(e=>e.onclick=ev=>{ev.preventDefault();S.ic=S.ic.filter(c=>c!==e.dataset.di);save();render()});wire()}
 function editAcc(id){const a=accOf(id)||{n:"",t:"cash",o:0},used=id&&S.tx.some(t=>t.a===id||t.b===id);
  ask({title:id?"Edit account":"Add an account",fields:[{k:"n",l:"Name",v:a.n,ph:"e.g. BPI"},{k:"t",l:"Type",t:"select",opts:Object.entries(TYP),v:a.t},{k:"o",l:"Starting balance (₱) — balance before your first entry",t:"num",v:a.o||0}],
  save:v=>{if(!v.n){alert("Please enter a name.");return false}const o=Object.assign({},a,{id:a.id||uid(),n:v.n,t:v.t,o:v.o||0}),i=S.acc.findIndex(x=>x.id===o.id);if(i>=0)S.acc[i]=o;else S.acc.push(o);save();render()},
  del:id?()=>{if(used){alert("This account has transactions, so it can’t be deleted. Rename it instead.");return false}if(!confirm("Delete this account?"))return false;S.acc=S.acc.filter(x=>x.id!==id);save();render()}:null})}
-/* ---------- long-term safety: undo point, deleted items, CSV, backup reminder ---------- */
-const snap=()=>{try{localStorage.setItem("money-prev",JSON.stringify({at:Date.now(),d:payload()}))}catch(e){}};
-const getPrev=()=>{try{const p=JSON.parse(localStorage.getItem("money-prev")||"null");return p&&p.d&&(p.d.tx||[]).some(t=>!t.x)?p:null}catch(e){return null}};
-const dfull=d=>new Date(+d.slice(0,4),+d.slice(5,7)-1,+d.slice(8)).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
-const lastBk=()=>{try{return+localStorage.getItem("money-lastbk")||0}catch(e){return 0}};
-function bkNudge(){if(SY.t||!live().length)return"";const d=lastBk(),days=d?Math.floor((Date.now()-d)/864e5):null;if(d&&days<30)return"";
- return`<div class="card" style="border-left:4px solid var(--pen)"><b>Back up your data</b><div class="lbl">${d?"Your last backup was "+days+" days ago.":"You haven’t backed up yet, so your log only lives on this device."} Turn on cloud sync in More, or export a backup file.</div><div class="row"><button class="sm" data-go="mo">Open More</button><button class="g sm" id="bkn">⬇ Export now</button></div></div>`}
-function yearCard(){const ys=[...new Set(live().map(t=>t.d.slice(0,4)))].sort().reverse();if(ys.length<2)return"";
- return`<div class="card"><h2>Year by year</h2>${ys.map(y=>{let i=0,e=0,v=0;for(let m=1;m<=12;m++){const st=mstats(y+"-"+pad(m));i+=st.inc;e+=st.exp;v+=st.sav}
-  return`<div class="bl" data-yr="${y}" style="cursor:pointer"><div><div class="nt" style="font-weight:600">${y}</div><div class="lbl">Income ${fmt(i)} · Moved to savings ${fmt(v)}</div></div><span style="font-weight:700">${fmt(e)} spent</span></div>`}).join("")}<div class="lbl">Tap a year to open it in the Ledger.</div></div>`}
-function longCard(){const t=live(),first=t.reduce((m,x)=>x.d<m?x.d:m,"9999"),last=t.reduce((m,x)=>x.d>m?x.d:m,"0000"),
- del=S.tx.filter(x=>x.x&&x.amt&&x.t).sort((a,b)=>(b.m||0)-(a.m||0)),prev=getPrev(),kb=Math.round(JSON.stringify(S).length/1024);
- return`<div class="card"><h2>📚 Your log</h2><div class="lbl">${t.length?t.length+" entries from "+dfull(first)+" to "+dfull(last)+". Nothing is ever dropped: every entry stays for good, and every old month is in the Ledger.":"No entries yet."} Size: ${kb} KB.</div>
- <div class="row"><button class="g" id="bcsv">⬇ Export all as CSV (opens in Excel)</button></div>
- ${prev?`<div class="row sp" style="border-top:1px solid var(--ln);padding-top:8px"><span class="lbl">Undo point from ${dfull(todayOf(prev.at))}: ${prev.d.tx.filter(x=>!x.x).length} entries (kept before your last import or erase)</span><button class="g sm" id="rprev">Restore</button></div>`:""}
- <details class="dd"><summary>Recently deleted (${del.length})</summary>${del.slice(0,50).map(x=>`<div class="bl"><div><div class="nt" style="font-weight:600">${esc(x.n||x.c||"Entry")}</div><div class="lbl">${dfull(x.d)} · ${fmt(x.amt)} · ${esc(aname(x.a))}</div></div><button class="g sm" data-rs="${x.id}">Restore</button></div>`).join("")||'<div class="lbl">Nothing deleted.</div>'}${del.length>50?'<div class="lbl">Showing the 50 most recent.</div>':""}</details></div>`}
-const todayOf=ms=>{const d=new Date(ms);return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())};
-function LONG(){const c=$("bcsv");if(c)c.onclick=exportCSV;
- const r=$("rprev");if(r)r.onclick=()=>{const p=getPrev();if(!p)return;if(confirm("Go back to the "+p.d.tx.filter(x=>!x.x).length+" entries you had before your last import or erase? Your current data is kept as the new undo point."))replaceAll(p.d)};
- document.querySelectorAll("[data-rs]").forEach(b=>b.onclick=()=>{const t=S.tx.find(x=>x.id===b.dataset.rs);if(!t)return;delete t.x;t.m=Date.now();save();render();toast("Restored ✓")})}
-function exportCSV(){const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"',T={exp:"Expense",inc:"Income",trf:"Transfer",adj:"Balance check",debt:"Debt"};
- const rows=live().slice().sort((a,b)=>a.d.localeCompare(b.d)),h=["Date","Type","Amount","Category","Note","Account","To account","Fee","Person"];
- const csv="\ufeff"+[h.map(q).join(",")].concat(rows.map(t=>[t.d,T[t.t]||t.t,t.t==="debt"?t.dr*t.amt:t.amt,t.c||"",t.n||"",aname(t.a),t.b?aname(t.b):"",t.fee||"",t.w||""].map(q).join(","))).join("\r\n"),
- a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="money-ledger-"+todayStr()+".csv";a.click();toast("CSV ready")}
 /* ---------- wiring ---------- */
 const NV={ov:()=>OM,bl:()=>BM};
 function wire(){const pn=$("p-"+TB);
@@ -426,7 +367,6 @@ function migrate(){const now=Date.now();let ch=false;
 let TD=todayStr();
 function tick(){const n=todayStr();if(n===TD)return;const old=ym(TD),was=TD;TD=n;CM=ym(n);if(OM===old)OM=CM;if(BM===old)BM=CM;if(LM===old)LM=CM;if(LD===was)LD=n;render()}
 setInterval(tick,30000);addEventListener("focus",tick);
-try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 migrate();theme();tab(TB);cloud();
 addEventListener("online",cloud);document.addEventListener("visibilitychange",()=>{if(!document.hidden){tick();cloud()}});
 if("serviceWorker"in navigator&&location.protocol.indexOf("http")===0)navigator.serviceWorker.register("sw.js").catch(()=>{});
