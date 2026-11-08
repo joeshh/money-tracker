@@ -57,6 +57,8 @@ details.mo{background:var(--card);border:1px solid var(--ln);border-radius:14px;
 #p-bl .card{text-align:left}#p-bl .nav{justify-content:space-between}.bi{padding:12px 0;border-top:1px solid var(--ln)}.bi:first-of-type{border-top:0}.ba{display:flex;gap:8px;margin-top:8px}.ba button{flex:1;padding:9px 4px}
 .card.l{text-align:left}.pr{text-align:left}
 .ov.cp{align-items:center;padding:16px}.modal.cp{max-width:300px;width:100%;border-radius:16px;padding:14px 14px 12px;max-height:none}.modal.cp h2{font-size:15px;margin-bottom:2px}.modal.cp .lbl{font-size:11.5px}.modal.cp .fl{margin:6px 0;font-size:12px}.modal.cp input,.modal.cp select{padding:7px 9px;font-size:15px}.modal.cp .row.sp{margin-top:10px}
+.ch .ri{fill:var(--ok)}.ch .sp2{fill:var(--bad)}.rt{display:grid;grid-template-columns:1.1fr 1fr 1fr 1fr;gap:6px 8px;font-size:13px;text-align:right;margin-top:8px}.rt .h{color:var(--mu);font-size:11.5px}.rt .m{text-align:left;font-weight:600}.rt .t{border-top:1px solid var(--ln);padding-top:6px;font-weight:700}.rt>*{cursor:default}.rt .m,.rt .rw{cursor:pointer}.ptitle{display:none}
+@media print{body.prr .hero,body.prr .tabs,body.prr #fab,body.prr #tq,body.prr .pn:not(#p-lg),body.prr #p-lg>*:not(#rpt),body.prr .noprint{display:none!important}body.prr .ptitle{display:block}body.prr{--bg:#fff;--card:#fff;--tx:#111;--mu:#555;--ln:#ddd;--ok:#1b8a4f;--bad:#c0392b;--sh:none;background:#fff}body.prr .card{box-shadow:none;border:0}}
 .ch .e{fill:var(--pen)}.ch .w{fill:var(--wat)}.ch.sm .v{font-size:9.5px}.lg2{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:middle}
 .tg .tc:last-child:nth-child(odd){grid-column:1/-1}.bar.over i{background:var(--bad)}.tk{position:absolute;top:0;bottom:0;width:2px;background:var(--card)}
 .fw{width:100%;padding:13px;font-size:16px;font-weight:600}
@@ -84,9 +86,9 @@ details.mo{background:var(--card);border:1px solid var(--ln);border-radius:14px;
 <script>
 /* ---------- data ---------- */
 const BILLS0=()=>[{id:"rent",n:"Rent",a:4500,c:"Rent"},{id:"wifi",n:"Wifi",a:799,c:"Internet"},{id:"elec",n:"Electricity",a:0,c:"Utilities",var:true},{id:"water",n:"Water",a:0,c:"Utilities",var:true}];
-const DEF=()=>({v:1,acc:[{id:"wal",n:"Wallet",t:"cash",o:0},{id:"gc",n:"GCash",t:"ewallet",o:0},{id:"gt",n:"GoTyme",t:"savings",o:0},{id:"mb",n:"MariBank",t:"savings",o:0},{id:"hd",n:"Cash Savings",t:"savings",o:0}],
+const DEF=()=>({v:1,acc:[{id:"wal",n:"Wallet",t:"cash",o:0},{id:"gc",n:"GCash",t:"ewallet",o:0},{id:"gt",n:"GoTyme",t:"savings",o:0},{id:"mb",n:"MariBank",t:"bank",o:0},{id:"hd",n:"Cash Savings",t:"savings",o:0}],
  cat:["Food & drinks","Groceries","Transport","Rent","Tuition","School","Internet","Load","Utilities","Subscriptions","Shopping","Personal care","Fun","Vices","Fees","Unrecorded","Other"],
- ic:["Allowance","Gift","Interest","Other income"],tx:[],bills:BILLS0(),paid:{},amt:{},bud:{},plans:[],la:"wal",theme:null,u:0,dh:[],wb:{a:2000,s:250,st:1,ex:["Rent","Tuition","Utilities","Internet"],items:[{c:"Transport",a:350},{c:"Food & drinks",a:1000}]},ef:{g:15000},bv:0,gs:0,fresh:0});
+ ic:["Allowance","Gift","Interest","Other income"],tx:[],bills:BILLS0(),paid:{},amt:{},bud:{},plans:[],la:"wal",theme:null,u:0,dh:[],wb:{a:2000,s:250,st:1,ex:["Rent","Tuition","Utilities","Internet"],items:[{c:"Transport",a:350},{c:"Food & drinks",a:1000}]},ef:{g:15000},bv:0,gs:0,mm:0,fresh:0});
 const LS="money-v1",SK="money-sync";
 let S=DEF();try{Object.assign(S,JSON.parse(localStorage.getItem(LS)||"{}"))}catch(e){}
 ["acc","cat","ic","tx","bills","plans"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=DEF()[k]});["paid","bud","amt"].forEach(k=>{if(!S[k]||typeof S[k]!=="object")S[k]=DEF()[k]});S.bills.forEach(b=>{if(b.el){b.var=true;delete b.el}});
@@ -118,7 +120,7 @@ const payload=()=>{const d=JSON.parse(JSON.stringify(S));delete d.theme;return d
 const lsg=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lss=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
 const keep=()=>{try{localStorage.setItem(LS,JSON.stringify(S));return true}catch(e){if(e&&e.name==="QuotaExceededError")toast("⚠ This device’s storage is full. Export a backup now (More tab).");return false}};
 const snap=label=>{try{localStorage.setItem("money-prev",JSON.stringify({at:Date.now(),label,data:payload()}));return true}catch(e){return false}};
-const getPrev=()=>{try{return JSON.parse(localStorage.getItem("money-prev")||"null")}catch(e){return null}};
+const getPrev=()=>{try{const p=JSON.parse(lsg("money-prev")||"null");if(!p||typeof p!=="object")return null;const d=p.data&&typeof p.data==="object"?p.data:(Array.isArray(p.tx)?p:null);if(!d||!Array.isArray(d.tx))return null;return{at:+p.at||Date.now(),label:String(p.label||"Undo point"),data:d}}catch(e){return null}};
 try{if(!lsg("money-first"))lss("money-first",String(Date.now()));if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
 const save=()=>{S.u=Date.now();keep();push()};
 const GH=(p,o)=>fetch("https://api.github.com"+p,Object.assign({},o,{headers:{Authorization:"Bearer "+SY.t,Accept:"application/vnd.github+json","Content-Type":"application/json"}})).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()});
@@ -300,7 +302,7 @@ let cal="";const tdy=todayStr(),sm=ts=>`${ts.length} transaction${ts.length===1?
   `<div class="card"><div class="row sp" style="margin:0"><h2 style="margin:0">${dayTs?dlabel(LD):mname(LM)}</h2>${undoB}</div>${undoL}<div class="lbl" style="margin-top:6px">${dayTs?(dayTs.length?sm(dayTs):"No transactions on this day."):sm(ts0)}</div>${dayTs&&dayTs.length?`<div style="margin-top:6px">${dayTs.map(row).join("")}</div>`:""}${dayTs?'<div class="row"><button class="g sm" data-lmo="1">Show whole month</button></div>':""}</div>`+
   (dayTs?"":(ml.length?ml.map(sec).join(""):'<div class="card"><div class="lbl">Nothing in this month yet. Tap a day, or use ＋.</div></div>'))}
  else cal=`<div class="card"><div class="row sp" style="margin:0"><h2 style="margin:0">All months${LY?" · "+LY:""}</h2>${undoB}</div>${undoL}<div class="lbl" style="margin-top:6px">${sm(ts0)}</div><div class="row"><button class="g sm" data-lto="1">📅 Back to calendar</button></div></div>`+(ml.length?ml.map(sec).join(""):'<div class="card"><div class="lbl">Nothing here yet. Tap ＋ to add a transaction.</div></div>');
- $("p-lg").innerHTML=`<div class="card"><button class="fw" data-lad="${topD}">＋ Add transaction · ${dlabel(topD)}</button><input id="lgq" placeholder="Search notes…" value="${esc(LQ)}" style="width:100%;margin-top:10px">${LY?`<div class="row"><span class="chip">Year ${LY} <a href="#" id="lgyx" style="text-decoration:none;color:var(--bad)">✕</a></span></div>`:""}${LM&&LQ?`<div class="lbl" style="margin-top:6px">Looking only in ${mname(LM)}. <a href="#" id="lgall" style="color:var(--ac)">Look in all months</a></div>`:""}</div>${cal}`;
+ $("p-lg").innerHTML=`<div class="card"><button class="fw" data-lad="${topD}">＋ Add transaction · ${dlabel(topD)}</button><input id="lgq" placeholder="Search notes…" value="${esc(LQ)}" style="width:100%;margin-top:10px">${LY?`<div class="row"><span class="chip">Year ${LY} <a href="#" id="lgyx" style="text-decoration:none;color:var(--bad)">✕</a></span></div>`:""}${LM&&LQ?`<div class="lbl" style="margin-top:6px">Looking only in ${mname(LM)}. <a href="#" id="lgall" style="color:var(--ac)">Look in all months</a></div>`:""}</div>${cal}${reportCard()}`;
  {const a=$("lgall");if(a)a.onclick=e=>{e.preventDefault();LM="";LD="";rLg()};const y=$("lgyx");if(y)y.onclick=e=>{e.preventDefault();LY="";rLg()}}
  $("lgundo").onclick=undo;
  $("lgq").oninput=e=>{LQ=e.target.value;clearTimeout(rLg.t);rLg.t=setTimeout(()=>{rLg();const q=$("lgq");q.focus();q.setSelectionRange(q.value.length,q.value.length)},250)};
@@ -314,8 +316,25 @@ let cal="";const tdy=todayStr(),sm=ts=>`${ts.length} transaction${ts.length===1?
  P("#p-lg [data-cd]").forEach(b=>b.onclick=()=>{LD=LD===b.dataset.cd?"":b.dataset.cd;rLg()});
  P("#p-lg [data-lmo]").forEach(b=>b.onclick=()=>{LD="";rLg()});
  P("#p-lg [data-lad]").forEach(b=>b.onclick=()=>openTx({d:b.dataset.lad||tdy}));
- P("#p-lg details.mo").forEach(d=>d.ontoggle=()=>{LOPEN[d.dataset.lm]=d.open});wire()}
+ P("#p-lg details.mo").forEach(d=>d.ontoggle=()=>{LOPEN[d.dataset.lm]=d.open});
+ {const r=$("rpn");if(r){r.onchange=e=>{RPN=e.target.value==="y"?"y":+e.target.value;rLg()};$("rpp").onclick=()=>{document.body.classList.add("prr");setTimeout(()=>{try{window.print()}catch(e){}},80)};const sc=document.querySelector("#rpt .chs3");if(sc)sc.scrollLeft=sc.scrollWidth;P("#rpt [data-rm]").forEach(e=>e.onclick=()=>{setLM(e.dataset.rm);LD="";LMP=false;rLg();window.scrollTo(0,0)})}}
+ wire()}
 function editTx(id){const t=S.tx.find(x=>x.id===id);if(!t)return;openTx(Object.assign({},t,{amt:String(t.amt),fee:t.fee?String(t.fee):""}))}
+let RPN=6;
+function reportCard(){const all=live();if(!all.length)return"";
+ const first=all.map(t=>t.d).sort()[0].slice(0,7);let ms=[];
+ if(RPN==="y"){const y=CM.slice(0,4);for(let m=1;m<=12;m++){const k=y+"-"+pad(m);if(k<=CM)ms.push(k)}}else for(let i=0;i<(+RPN||240);i++){const m=shiftM(CM,-i);if(!+RPN&&m<first)break;ms.unshift(m)}
+ const rows=ms.map(m=>{const q=mstats(m),al=all.filter(t=>t.t==="inc"&&t.c==="Allowance"&&ym(t.d)===m).reduce((a,t)=>a+t.amt,0);return{m,inc:r2(q.inc),exp:r2(q.exp),al:r2(al)}}),
+ ti=r2(rows.reduce((a,x)=>a+x.inc,0)),te=r2(rows.reduce((a,x)=>a+x.exp,0)),mx=Math.max(1,...rows.flatMap(x=>[x.inc,x.exp])),slot=84,W=Math.max(rows.length*slot,300),H=220,T=26,B2=30,ph=H-T-B2;
+ const bars=rows.map((x,i)=>{const bw=30,gp=6,sx=i*slot+(slot-2*bw-gp)/2;const one=(v,c,j)=>{const bh=ph*v/mx,xx=sx+j*(bw+gp);return`<rect class="${c}" x="${xx}" y="${T+ph-bh}" width="${bw}" height="${Math.max(bh,v>0?2:0)}" rx="4"/>${v>0?`<text class="v" x="${xx+bw/2}" y="${T+ph-bh-5}">${fmtI(v)}</text>`:""}`};return one(x.inc,"ri",0)+one(x.exp,"sp2",1)+`<text class="m" x="${i*slot+slot/2}" y="${H-10}">${mshort(x.m)}</text>`}).join("");
+ const lab=RPN==="y"?"This year":+RPN?"Last "+RPN+" months":"All time";
+ return`<details class="card" id="rpt" open style="padding:0"><summary style="padding:14px;font-weight:700;cursor:pointer">📊 Monthly report: received vs spent</summary><div style="padding:0 14px 14px"><div class="ptitle"><b>Money received vs spent · ${lab}</b><div class="lbl">Printed ${new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</div></div>
+ <div class="row noprint" style="justify-content:flex-start"><select id="rpn"><option value="6"${RPN===6?" selected":""}>Last 6 months</option><option value="12"${RPN===12?" selected":""}>Last 12 months</option><option value="y"${RPN==="y"?" selected":""}>This year</option><option value="0"${RPN===0?" selected":""}>All time</option></select><button class="g sm" id="rpp">🖨 Print / Save as PDF</button></div>
+ <div class="lbl" style="margin-top:6px"><span class="lg2" style="background:var(--ok)"></span>Money received &nbsp; <span class="lg2" style="background:var(--bad)"></span>Money spent</div>
+ <div class="chs3" style="overflow-x:auto;margin-top:4px"><svg class="ch sm" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block"><line x1="0" y1="${T+ph}" x2="${W}" y2="${T+ph}" stroke="var(--ln)"/>${bars}</svg></div>
+ <div class="rt"><div class="h m">Month</div><div class="h">Received</div><div class="h">Spent</div><div class="h">Left</div>${rows.slice().reverse().map(x=>`<div class="m" data-rm="${x.m}">${mshort(x.m)}</div><div class="rw pos" data-rm="${x.m}">${fmtI(x.inc)}${x.al>0&&x.al!==x.inc?`<div class="lbl" style="font-size:10.5px">allowance ${fmtI(x.al)}</div>`:""}</div><div class="rw neg" data-rm="${x.m}">${fmtI(x.exp)}</div><div class="rw ${x.inc-x.exp<0?"neg":""}" data-rm="${x.m}">${x.inc-x.exp<0?"−":""}${fmtI(Math.abs(x.inc-x.exp))}</div>`).join("")}<div class="t m">Total</div><div class="t pos">${fmtI(ti)}</div><div class="t neg">${fmtI(te)}</div><div class="t ${ti-te<0?"neg":""}">${ti-te<0?"−":""}${fmtI(Math.abs(ti-te))}</div></div>
+ <div class="lbl noprint" style="margin-top:8px">“Left” is received minus spent for that month. Moving money into savings is not counted as spent. Tap a month to open it in the calendar.</div></div></details>`}
+addEventListener("afterprint",()=>document.body.classList.remove("prr"));
 /* ---------- category manager ---------- */
 let CK="e",DX=-1;
 const CLOCK=["Fees","Unrecorded"];
@@ -476,7 +495,8 @@ function rMo(){const b=balances();
  $("addacc").onclick=()=>editAcc();$("ecat").onclick=()=>catManager("e");$("zall").onclick=zeroAll;wireLog();$("bsync").onclick=setupSync;$("bexp").onclick=exportData;$("bimp").onclick=()=>$("imp").click();
  $("bres").onclick=()=>{if(confirm("Erase ALL transactions, bills and plans on this device (and your cloud copy)? An undo point is kept in More → Your log.")&&confirm("Really erase everything? Export a backup first if unsure.")){const th=S.theme,now=Date.now(),g=S.tx.map(t=>Object.assign({},t,{x:1,m:now}));snap("Before erase");S=Object.assign(DEF(),{theme:th});S.tx=g;migrate();save();render();toast("Erased")}};
  wire()}
-function logCard(){const all=S.tx,lv=live(),del=all.filter(t=>t.x&&t.amt),ds=lv.map(t=>t.d).sort(),sz=new Blob([JSON.stringify(S)]).size,pv=getPrev(),lb=+(lsg("money-lastbk")||0);
+function logCard(){try{return logCard0()}catch(e){return`<div class="card"><h2>Your log</h2><div class="lbl">${live().length} entries kept. (Details unavailable: ${esc(String(e.message))})</div><div class="row"><button class="g" id="bcsv">⬇ Export all entries (CSV)</button></div></div>`}}
+function logCard0(){const all=S.tx,lv=live(),del=all.filter(t=>t.x&&t.amt),ds=lv.map(t=>t.d).sort(),sz=new Blob([JSON.stringify(S)]).size,pv=getPrev(),lb=+(lsg("money-lastbk")||0);
  return`<div class="card"><h2>Your log · kept for good</h2><div class="lbl" style="font-size:14px">${lv.length} entries${ds.length?` from ${dlabel(ds[0])} ${ds[0].slice(0,4)} to ${dlabel(ds[ds.length-1])} ${ds[ds.length-1].slice(0,4)}`:""} · ${del.length} deleted (still recoverable) · about ${sz<1048576?Math.round(sz/1024)+" KB":(sz/1048576).toFixed(1)+" MB"} used${sz>3e6?" ⚠ getting large, export a backup":""}</div>
  <div class="lbl" style="margin-top:4px">Nothing is ever erased for real: a deleted entry stays saved so you can bring it back. Last file backup: ${lb?new Date(lb).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"never"}.</div>
  <div class="row"><button class="g" id="bcsv">⬇ Export all entries (CSV)</button></div>
@@ -507,7 +527,7 @@ function wire(){const pn=$("p-"+TB);
  pn.querySelectorAll("[data-ep]").forEach(b=>b.onclick=()=>editPlan(b.dataset.ep));
  pn.querySelectorAll("[data-pp]").forEach(b=>b.onclick=()=>{const p=S.plans.find(x=>x.id===b.dataset.pp);openTx({t:"exp",lock:"Log a payment · "+planName(p),n:p.sm+" tuition",c:p.c,p:p.id,amt:""})});
  pn.querySelectorAll("[data-ea]").forEach(b=>b.onclick=()=>editAcc(b.dataset.ea))}
-function render(){({ov:rOv,lg:rLg,bd:rBd,sv:rSv,bl:rBl,pl:rPl,db:rDb,mo:rMo})[TB]()}
+function render(){try{({ov:rOv,lg:rLg,bd:rBd,sv:rSv,bl:rBl,pl:rPl,db:rDb,mo:rMo})[TB]()}catch(e){console.error(e);const p=$("p-"+TB);if(p)p.innerHTML=`<div class="card"><h2>⚠ This tab hit a problem</h2><div class="lbl" style="font-size:14px">Your data is safe. Please tell Claude this message:<br><b>${esc(String(e&&e.message||e))}</b></div><div class="row"><button class="g" id="rerr">Try again</button><button class="g" id="bexp2">⬇ Export backup</button></div></div>`;const r=$("rerr");if(r)r.onclick=()=>render();const x=$("bexp2");if(x)x.onclick=exportData}}
 function migrate(){const now=Date.now();let ch=false;
  const i=S.cat.indexOf("Internet & load");if(i>=0){S.cat.splice(i,1);["Load","Internet"].forEach(c=>{if(!S.cat.includes(c))S.cat.splice(i,0,c)});ch=true}
  S.tx.forEach(t=>{if(t.c==="Internet & load"){t.c=/wifi|internet/i.test(t.n||"")?"Internet":"Load";t.m=now;ch=true}});
@@ -519,6 +539,7 @@ function migrate(){const now=Date.now();let ch=false;
  if(!S.ef||typeof S.ef!=="object"){S.ef=DEF().ef;ch=true}
  if(!S.bv){S.acc.forEach(a=>{a.o0=a.o||0;a.o=0;a.bd=todayStr()});S.bv=1;S.fresh=1;ch=true}
  if(!S.gs){S.gs=1;if(!S.acc.some(a=>/^g\s*save$|gcash\s*save/i.test(a.n)))S.acc.push({id:"gsv",n:"GSave",t:"savings",o:0,bd:todayStr()});ch=true}
+ if(!S.mm){S.mm=1;S.acc.forEach(a=>{if(/^mari\s*bank$/i.test(a.n)&&a.t==="savings")a.t="bank"});ch=true}
  if(ch)keep();return ch}
 let TD=todayStr();
 function tick(){const n=todayStr();if(n===TD)return;const old=ym(TD),was=TD;TD=n;CM=ym(n);if(OM===old)OM=CM;if(BM===old)BM=CM;if(LM===old)LM=CM;if(LD===was)LD=n;render()}
