@@ -442,7 +442,17 @@ const spendable=()=>Math.max(0,r2((+S.wb.a||0)-(+S.wb.s||0)));
 const cAmt=t=>{const ex=S.wb.ex||[];if(t.t==="exp")return ex.includes(t.c)?0:t.amt;if(t.t==="trf"&&t.fee)return ex.includes("Fees")?0:t.fee;return 0},cKey=t=>t.t==="exp"?(t.c||"No category"):"Fees";
 function wkData(ws){const we=addD(ws,6),by={};let tot=0,saved=0;live().forEach(t=>{if(t.d<ws||t.d>we)return;const a=cAmt(t);if(a){by[cKey(t)]=(by[cKey(t)]||0)+a;tot+=a}if(t.t==="trf"){if(isSav(t.b)&&!isSav(t.a))saved+=t.amt;else if(isSav(t.a)&&!isSav(t.b))saved-=t.amt}});return{tot:r2(tot),by,saved:r2(saved),we}}
 const weekLeft=ws=>r2(spendable()-wkData(ws).tot);
-function saveNow(){const sv=S.acc.find(a=>a.t==="savings"),fr=S.acc.find(a=>a.id===S.la&&a.t!=="savings")||S.acc.find(a=>a.t!=="savings"),o={t:"trf",n:"Savings"};if(fr)o.a=fr.id;if(sv)o.b=sv.id;openTx(o)}
+function saveNow(){
+ const sa=S.acc.filter(a=>a.t==="savings"),fr=S.acc.find(a=>a.id===S.la&&a.t!=="savings")||S.acc.find(a=>a.t!=="savings");
+ if(!sa.length||!fr){alert("You need a Savings account first. Add one in More.");return}
+ const b=balances(),g=+S.ef.g||0,tot=r2(sa.reduce((x,a)=>x+b[a.id],0)),togo=r2(Math.max(0,g-Math.max(tot,0))),wk=+S.wb.s||0,got=Math.max(0,wkData(wkStart(todayStr(),+S.wb.st||0)).saved);
+ let need=wk>0?r2(Math.max(0,wk-got)):togo;if(need>0&&togo>0)need=Math.min(need,togo);
+ const last=live().filter(t=>t.t==="trf"&&isSav(t.b)&&!isSav(t.a)).pop(),dest=last&&sa.some(a=>a.id===last.b)?last.b:sa[0].id;
+ const note=need>0?"You need to save <b>"+fmt(need)+"</b> "+(wk>0?"this week.":"to finish your emergency fund."):togo>0?"You already saved this week’s "+fmt(wk)+" ✓ You can add more.":"Your emergency fund is full ✓ Anything you add is extra.";
+ ask({compact:true,title:"Save money",note,ok:"Save it",fields:[{k:"a",l:"Amount (₱)",t:"num",v:need>0?need:"",ph:"0"},{k:"to",l:"Put it in",t:"select",opts:sa.map(a=>[a.id,a.n]),v:dest}],
+  save:v=>{if(v.a===null||v.a<=0){alert("Please enter an amount.");return false}
+   const o={id:uid(),d:todayStr(),t:"trf",a:fr.id,b:v.to,amt:r2(v.a),n:"Savings",m:Date.now()};
+   pushUndo([o.id],"savings "+fmt(o.amt));S.tx.push(o);save();render();toast("Saved "+fmt(o.amt)+" ✓")}})}
 let WO=0;
 function rBd(){const st=+S.wb.st||0,td=todayStr(),cur=wkStart(td,st),ws=addD(cur,WO*7),d=wkData(ws),sp=spendable(),left=r2(sp-d.tot),isCur=WO===0,over=left<0;
  const di=isCur?Math.round((dobj(td)-dobj(ws))/864e5):0,dl=isCur?7-di:0,perDay=dl>0&&left>0?left/dl:0,todaySp=r2(live().filter(t=>t.d===td).reduce((a,t)=>a+cAmt(t),0));
