@@ -1,0 +1,16 @@
+name: Money bill reminders
+on:
+  schedule:
+    - cron: "0 0 * * *"   # every day at 8:00 AM Philippine time (00:00 UTC)
+  workflow_dispatch:       # lets you press "Run workflow" to test it
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node money-remind.mjs
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
