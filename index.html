@@ -123,16 +123,21 @@ function mstats(m){const o={inc:0,exp:0,sav:0,adj:0,cats:{},n:0};live().filter(t
  else if(t.t==="adj")o.adj+=t.amt});return o}
 /* ---------- save / sync ---------- */
 let pt,SY={};try{SY=JSON.parse(localStorage.getItem(SK)||"{}")}catch(e){}
-const sync=t=>{const e=$("sy");if(e)e.textContent=t};
 const payload=()=>{const d=JSON.parse(JSON.stringify(S));delete d.theme;return d};
 const lsg=k=>{try{return localStorage.getItem(k)}catch(e){return null}},lss=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+const LSYNC=()=>+lsg("money-lastsync")||0;let SYST=(SY.t&&LSYNC())?"ok":"";
+const relT=ms=>{const d=Date.now()-ms;if(d<45e3)return"just now";if(d<36e5)return Math.max(1,Math.round(d/6e4))+" min ago";const t=new Date(ms),n=new Date(),tm=t.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}),y=new Date(n);y.setDate(n.getDate()-1);if(t.toDateString()===n.toDateString())return"today "+tm;if(t.toDateString()===y.toDateString())return"yesterday "+tm;return t.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+tm};
+const syncLine=()=>{const L=LSYNC();return L?"Last synced "+relT(L):"Not synced yet"};
+const paintSync=()=>{const e=$("sy");if(!e)return;e.textContent=SYST==="ok"?"☁ "+syncLine():SYST+(SYST&&LSYNC()&&SY.t&&SYST!=="Syncing…"&&!/this device only/.test(SYST)?" · last synced "+relT(LSYNC()):"")};
+const sync=t=>{SYST=t;paintSync()},syncOk=()=>{lss("money-lastsync",String(Date.now()));SYST="ok";paintSync()};
+setInterval(paintSync,30000);
 const keep=()=>{try{localStorage.setItem(LS,JSON.stringify(S));return true}catch(e){if(e&&e.name==="QuotaExceededError")toast("⚠ This device’s storage is full. Export a backup now (More tab).");return false}};
 const snap=label=>{try{localStorage.setItem("money-prev",JSON.stringify({at:Date.now(),label,data:payload()}));return true}catch(e){return false}};
 const getPrev=()=>{try{const p=JSON.parse(lsg("money-prev")||"null");if(!p||typeof p!=="object")return null;const d=p.data&&typeof p.data==="object"?p.data:(Array.isArray(p.tx)?p:null);if(!d||!Array.isArray(d.tx))return null;return{at:+p.at||Date.now(),label:String(p.label||"Undo point"),data:d}}catch(e){return null}};
 try{if(!lsg("money-first"))lss("money-first",String(Date.now()));if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
 const save=()=>{S.u=Date.now();keep();push()};
 const GH=(p,o)=>fetch("https://api.github.com"+p,Object.assign({},o,{headers:{Authorization:"Bearer "+SY.t,Accept:"application/vnd.github+json","Content-Type":"application/json"}})).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()});
-function push(){if(!SY.id)return;clearTimeout(pt);sync("Syncing…");pt=setTimeout(()=>GH("/gists/"+SY.id,{method:"PATCH",body:JSON.stringify({files:{"money.json":{content:JSON.stringify(payload())}}})}).then(()=>sync("☁ Synced")).catch(()=>sync(navigator.onLine?"Sync error: saved on this device":"Offline: saved on this device, will sync later")),600)}
+function push(){if(!SY.id)return;clearTimeout(pt);sync("Syncing…");pt=setTimeout(()=>GH("/gists/"+SY.id,{method:"PATCH",body:JSON.stringify({files:{"money.json":{content:JSON.stringify(payload())}}})}).then(syncOk).catch(()=>sync(navigator.onLine?"Sync error: saved on this device":"Offline: saved on this device, will sync later")),600)}
 function merge(a,b){const base=(b.u||0)>(a.u||0)?b:a,r=Object.assign({},base),m=new Map();[...(a.tx||[]),...(b.tx||[])].forEach(t=>{const o=m.get(t.id);if(!o||(t.m||0)>(o.m||0))m.set(t.id,t)});r.tx=[...m.values()];r.u=Math.max(a.u||0,b.u||0);if(!r.bv&&(a.bv||b.bv)){const c=a.bv?a:b;r.bv=c.bv;r.acc=c.acc}return r}
 async function cloud(){
  if(!SY.t){sync("Saved on this device only");return}
@@ -142,7 +147,7 @@ async function cloud(){
    lss(SK,JSON.stringify(SY))}
   const g=await GH("/gists/"+SY.id),f=g.files&&g.files["money.json"];let d=null;if(f){const txt=f.truncated&&f.raw_url?await fetch(f.raw_url).then(r=>{if(!r.ok)throw new Error(r.status);return r.text()}):f.content;d=JSON.parse(txt)}
   if(d){const th=S.theme,m=merge(S,d);S=Object.assign(DEF(),m,{theme:th});migrate();keep();render();
-   if(JSON.stringify(payload())!==JSON.stringify(d))push();else sync("☁ Synced")}else push()
+   if(JSON.stringify(payload())!==JSON.stringify(d))push();else syncOk()}else push()
  }catch(e){sync(navigator.onLine?"Sync error: check your token":"Offline: saved on this device")}}
 function setupSync(){const t=prompt("Paste your GitHub token (classic token with only the “gist” permission). Leave empty to turn cloud sync off.",SY.t||"");
  if(t===null)return;SY=t.trim()?{t:t.trim()}:{};lss(SK,JSON.stringify(SY));cloud()}
@@ -598,7 +603,7 @@ function rMo(){const b=balances();
  <div class="card"><h2>Categories</h2><div class="lbl">Expenses</div><div>${S.cat.map(c=>`<span class="chip">${esc(c)}</span>`).join("")}</div><div class="lbl" style="margin-top:8px">${esc(AL())} sources</div><div>${S.ic.map(c=>`<span class="chip">${esc(c)}</span>`).join("")}</div><div class="row"><button class="g" id="ecat">✎ Edit categories</button></div></div>
  ${logCard()}
  ${ntCard()}
- <div class="card"><h2>Backup &amp; cloud sync</h2><div class="row"><button class="g" id="bsync">☁ Set up cloud sync</button><button class="g" id="bexp">⬇ Export backup</button><button class="g" id="bimp">⬆ Import backup</button></div><div class="lbl" style="margin-top:8px">Your data is always saved on this device and works offline. With cloud sync on, it is also copied to a private GitHub Gist and merged across your devices, so entries made on two devices are both kept. Importing a file replaces everything.</div></div>
+ <div class="card"><h2>Backup &amp; cloud sync</h2><div class="row"><button class="g" id="bsync">☁ Set up cloud sync</button><button class="g" id="bexp">⬇ Export backup</button><button class="g" id="bimp">⬆ Import backup</button></div><div class="lbl" style="margin-top:8px"><b>${esc(SY.t?syncLine():"Cloud sync is off")}</b>. Your data is always saved on this device and works offline. With cloud sync on, it is also copied to a private GitHub Gist and merged across your devices, so entries made on two devices are both kept. Importing a file replaces everything.</div></div>
  <div class="row"><button class="g dl" id="bres">Erase everything</button></div>`;
  $("cuti").onclick=()=>ask({compact:true,title:"App name",fields:[{k:"n",l:"Name shown at the top",v:(S.ti||"").trim()||"Expense Tracker"}],save:v=>{S.ti=(v.n||"").trim();save();render();toast("Saved ✓")}});$("cual").onclick=()=>ask({compact:true,title:"Money you receive",note:"What do you call the money that comes in each week or month? For example Allowance, Salary or Pay.",fields:[{k:"n",l:"Name",v:AL()}],save:v=>{S.al=(v.n||"").trim();save();render();toast("Saved ✓")}});
  document.querySelectorAll("#p-mo [data-tabs]").forEach(b=>b.onclick=()=>{const k=b.dataset.tabs,h=(S.th||[]).slice();S.th=h.includes(k)?h.filter(x=>x!==k):h.concat([k]);save();render()});
@@ -668,7 +673,8 @@ function migrate(){const now=Date.now();let ch=false;
 let TD=todayStr();
 function tick(){const n=todayStr();if(n===TD)return;const old=ym(TD),was=TD;TD=n;CM=ym(n);if(OM===old)OM=CM;if(BM===old)BM=CM;if(LM===old)LM=CM;if(LD===was)LD=n;render()}
 setInterval(tick,30000);addEventListener("focus",tick);
-migrate();theme();tab(TB);cloud();setTimeout(()=>ntEvent("o"),1500);
+try{localStorage.removeItem("money-pin")}catch(e){}
+paintSync();migrate();theme();tab(TB);cloud();setTimeout(()=>ntEvent("o"),1500);
 addEventListener("online",cloud);document.addEventListener("visibilitychange",()=>{if(!document.hidden){tick();cloud()}});
 const hashAdd=()=>{if(location.hash==="#add"){history.replaceState(null,"",location.pathname+location.search);setTimeout(()=>{TOPF=true;openTx()},150)}};hashAdd();addEventListener("hashchange",hashAdd);
 if("serviceWorker"in navigator&&location.protocol.indexOf("http")===0)navigator.serviceWorker.register("sw.js").catch(()=>{});
